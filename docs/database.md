@@ -1,0 +1,144 @@
+# База данных (Supabase)
+
+Владелец зоны: @Ehai1911 · ревью: @svlab27-web
+Статус: черновик к задачам #1 и #3 · 12.10.2026
+
+## Коротко
+
+- Одна база **Postgres в Supabase**, схема `public`.
+- **Браузер в базу не ходит.** Mini App и кабинет обращаются только к `api/` (Vercel Functions), а `api/` ходит в базу ключом `service_role`.
+- **RLS включён на всех таблицах, политик нет** → для ключей `anon` / `authenticated` всё закрыто. Права проверяет `api/`.
+- **Схема меняется только миграциями** из `supabase/migrations/`, через PR.
+- **Эталоны ответов, тесты и решения** лежат в базе, но `api/` их никогда не отдаёт в браузер.
+
+## 1. Настройка проекта (один раз)
+
+1. supabase.com → New project
+   - Name: `college-tutor`
+   - Region: **Central EU (Frankfurt)** или **South Asia (Mumbai)** — ближе к Казахстану
+   - Пароль базы — сразу в менеджер паролей, в чат и в код не пишем
+2. Пригласить второго участника: Organization → Team → Invite.
+3. SQL Editor → выполнить по порядку:
+   - `supabase/migrations/001_init.sql`
+   - (только dev) `supabase/seed.sql`
+   - `NOTIFY pgrst, 'reload schema';` — иначе API Supabase не видит новые таблицы
+4. Project Settings → API:
+   - **Project URL** → `SUPABASE_URL`
+   - вкладка *Legacy API keys* → **`service_role`** (`eyJ…`) → `SUPABASE_SERVICE_ROLE_KEY`
+     (новый ключ `sb_secret_…` с supabase-js как Bearer не работает)
+5. Ключи вписать **только** в Vercel → Settings → Environment Variables (Production + Preview).
+6. Проверка: `select count(*) from subjects;` → 2.
+
+## 2. Модель данных
+
+```mermaid
+erDiagram
+    subjects ||--o{ lessons : "содержит"
+    groups ||--o{ group_members : ""
+    users ||--o{ group_members : ""
+    groups ||--o{ invites : "приглашения"
+    users ||--o{ attempts : "ответы"
+    lessons ||--o{ attempts : ""
+    users ||--o{ progress : ""
+    lessons ||--o{ progress : ""
+    users ||--o{ hint_events : "подсказки"
+    lessons ||--o{ hint_events : ""
+    users ||--o{ help_requests : "нужна помощь"
+    groups ||--o{ help_requests : ""
+```
+
+| Таблица | Что хранит | Ключевые поля |
+|---|---|---|
+| `subjects` | Предметы пилота | `id` = `python` / `math` |
+| `lessons` | Урок целиком из `content/*.json` | `subject_id`, `slug`, `version`, `content` (jsonb), `is_published`, `approved_by` |
+| `groups` | Учебные группы | `title`, `language` (`ru` / `kk`) |
+| `users` | Студенты и преподаватели | `telegram_user_id` (уникальный), `role`, настройки напоминаний |
+| `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher` |
+| `invites` | Одноразовые приглашения в группу | `token`, `group_id`, `role`, `expires_at`, `used_by` |
+| `attempts` | Каждый ответ студента | `answer` (jsonb), `is_correct`, `hints_used`, `is_independent`, `request_id` |
+| `progress` | Где студент в уроке | `(user_id, lesson_id)`, `current_step`, `completed_steps`, `completed_at` |
+| `hint_events` | Каждая взятая подсказка | `level` 1–3, `source` = `script` / `ai` |
+| `help_requests` | Обращения «нужна помощь» | `text`, `status` = `new` / `resolved` |
+
+## 3. Основные сценарии
+
+### Вход студента (#5)
+1. Студент открывает `t.me/<бот>?startapp=<token>`.
+2. `api/` проверяет подпись `initData` (HMAC по `BOT_TOKEN`) и свежесть `auth_date`.
+   **Никогда** не доверяем `initDataUnsafe` и `username`.
+3. По `telegram_user_id` находим или создаём `users`.
+4. Если пришёл `token`: проверяем `invites` (не использован, не истёк) → создаём `group_members` → ставим `used_by`, `used_at`.
+   Токен одноразовый: повторное открытие той же ссылки просто открывает приложение.
+
+### Выдача урока (#6)
+- `api/` берёт `lessons.content` и **вырезает** поля `expected`, `tests`, `solution`, `common_mistakes` перед отправкой в браузер.
+- Отдаются только уроки с `is_published = true`.
+
+### Ответ студента (#6)
+1. Браузер шлёт ответ + `request_id` (uuid, генерирует клиент).
+2. `api/` сверяет с эталоном на сервере:
+   - `choice` — индекс
+   - `number` — `|ответ − value| ≤ tolerance`
+   - `formula` — сравнение выражений (#8)
+   - `code` — скрытые тесты (#7)
+3. Пишет `attempts`. Повтор с тем же `request_id` не создаёт дубль (`unique (user_id, request_id)`).
+4. Обновляет `progress`.
+
+### Подсказка
+- Каждая подсказка → строка в `hint_events`.
+- В самостоятельной задаче (`independent: true`) `api/` подсказки не выдаёт.
+
+### Кабинет преподавателя (#9)
+- Преподаватель видит только группы, где он `group_members.role = 'teacher'`.
+- «Кто застрял»: 2 неверные попытки подряд по одному шагу **или** ≥ 3 подсказки на шаг.
+
+## 4. Права доступа
+
+| Кто | Что видит | Где проверяется |
+|---|---|---|
+| Студент | Только свои `attempts`, `progress`, `hint_events`, `help_requests` | `api/`: `user_id` из проверенного `initData` |
+| Преподаватель | Студентов своих групп | `api/`: join через `group_members` с ролью `teacher` |
+| Админ | Всё | `users.role = 'admin'` |
+| Браузер напрямую | Ничего | RLS без политик |
+
+`service_role` обходит RLS, поэтому **любой запрос в `api/` обязан фильтровать по пользователю**. Это пункт ревью для каждого PR в `api/`.
+
+## 5. Уроки: из `content/` в базу
+
+- Источник правды — JSON-файлы в `content/` (правятся через PR).
+- После merge скрипт синхронизации делает upsert в `lessons` по `(subject_id, slug, version)`.
+- Существенно изменили урок, а по нему уже есть попытки → поднимаем `version`, чтобы старые ответы ссылались на старую версию.
+- `is_published` и `approved_by` ставим, когда преподаватель утвердил урок (`status: "approved"` в JSON).
+
+Скрипт синхронизации — отдельная задача (добавить в бэклог).
+
+## 6. Миграции
+
+- Имя: `NNN_кратко.sql` — `002_teacher_indexes.sql`, `003_ai_usage.sql`.
+- **Применённую миграцию не меняем** — только новая сверху.
+- Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
+  Позже можно перейти на Supabase CLI (`supabase db push`).
+- В описании PR пишем, применена ли миграция и в каком окружении.
+- `seed.sql` — только для dev.
+
+## 7. Окружения и бэкапы
+
+| | Сейчас (пилот) | Позже |
+|---|---|---|
+| Проекты | Один (dev = prod) | Два: `college-tutor-dev` и `college-tutor` |
+| Тариф | Free: 500 МБ, проект засыпает после ~7 дней простоя | Pro ($25/мес), когда пойдут реальные группы |
+| Бэкапы | Free без восстановления на точку → раз в неделю экспорт (Database → Backups / `pg_dump`) | Ежедневные бэкапы Pro |
+
+## 8. Следующие миграции (черновик)
+
+- **002** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
+- **003** — учёт AI: таблица `ai_usage` (кто, сколько токенов, стоимость) + дневной лимит на студента.
+- **004** — согласия: `users.consent_at`, `users.birth_year` — если в пилоте будут несовершеннолетние.
+- Срок хранения учебных данных и удаление по запросу — решить до пилота.
+
+## Открытые вопросы
+
+- [ ] Чья учётка Supabase и регион (Frankfurt / Mumbai)?
+- [ ] Язык групп пилота: `ru`, `kk` или оба?
+- [ ] Возраст студентов → нужны ли согласия (миграция 004)?
+- [ ] AI-провайдер и лимит расходов на студента (миграция 003)?
