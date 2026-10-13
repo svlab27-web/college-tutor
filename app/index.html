@@ -24,11 +24,7 @@
 })();
 </script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-// Вход преподавателя: t.me/tutor_testbot?startapp=teacher или ?role=teacher → кабинет (демо; в сервисе роль выдаёт сервер, #5)
-(function(){var tg=window.Telegram&&window.Telegram.WebApp,sp=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param;
-if(sp==='teacher'||/[?&]role=teacher\b/.test(location.search))location.replace('teacher.html'+location.hash)})();
-</script>
+<script src="role.js"></script>
 <script src="i18n.js"></script>
 <script>
 // Тема: в Telegram — как в Telegram, в браузере — как в системе
@@ -44,7 +40,7 @@ if(sp==='teacher'||/[?&]role=teacher\b/.test(location.search))location.replace('
 <body>
 <div class="app">
 <aside class="sidebar"><div><div class="logo"><span class="logo-mark" aria-hidden="true">↗</span>Мой<br>колледж</div><div class="brand-caption">Учиться становится понятнее</div></div><nav class="nav" aria-label="Разделы приложения"><button data-view="home" class="active"><span class="nav-icon">▦</span>Дисциплины</button><button data-view="lesson"><span class="nav-icon">◫</span>Моё занятие</button><button data-view="progress"><span class="nav-icon">↗</span>Мой прогресс</button><button data-view="library"><span class="nav-icon">▤</span>Материалы</button><button data-view="teacher"><span class="nav-icon">◎</span>Преподавателю</button></nav><div class="side-course"><div class="eyebrow">Твой предмет</div><div class="course-name">Программирование</div><div class="course-meta">Python · Основы · 1 курс</div></div><div class="side-footer"><span class="demo-dot"></span>Интерактивный прототип<br><span style="display:block;margin-top:9px">Один небольшой шаг.<br>Одно новое умение.</span></div></aside>
-<main class="main"><header class="topbar"><div class="breadcrumb">Мой колледж <span style="margin:0 9px">/</span> <strong id="crumb">Учебная мастерская</strong></div><div class="profile"><span>Демо-студент</span><div class="avatar" aria-label="Демонстрационный профиль">ДС</div></div></header><div id="content"></div><footer class="footer"><span>Мой колледж · Учебный тьютор</span><span>Сценарный тьютор · Без подключения к AI · Данные в этом браузере</span><a href="about.html" class="about-link">О прототипе</a></footer></main></div>
+<main class="main"><header class="topbar"><div class="breadcrumb">Мой колледж <span style="margin:0 9px">/</span> <strong id="crumb">Учебная мастерская</strong></div><div class="profile"><span>Демо-студент</span><div class="avatar" aria-label="Демонстрационный профиль">ДС</div></div></header><div id="content"></div><footer class="footer"><span>Мой колледж · Учебный тьютор</span><span>Сценарный тьютор · Без подключения к AI · Данные в этом браузере</span><a href="about.html" class="about-link">О прототипе</a><a href="index.html?choose" class="about-link">Сменить роль</a></footer></main></div>
 <div id="toast" class="toast hidden" role="status"></div><div id="modal" class="modal-backdrop hidden"></div>
 <script>
 'use strict';
