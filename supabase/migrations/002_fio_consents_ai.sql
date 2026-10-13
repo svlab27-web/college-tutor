@@ -19,14 +19,17 @@ alter table invites
 -- ── 2. Согласия ───────────────────────────────────────────────
 -- Каждое согласие — отдельная строка (история не теряется).
 -- Отзыв согласия = заполняем revoked_at, строку не удаляем.
+-- Удаление студента не удаляет его согласия: user_id становится null,
+-- а telegram_user_id (копия на момент согласия) показывает, чьё это было согласие.
 create table consents (
   id           uuid primary key default gen_random_uuid(),
-  user_id      uuid not null references users(id) on delete cascade,
+  user_id      uuid references users(id) on delete set null,
+  telegram_user_id bigint not null,          -- копия users.telegram_user_id на момент согласия
   kind         text not null check (kind in ('personal_data','parental')),
   doc_version  text not null,                -- версия текста согласия, напр. 'pd-2026-10'
   granted_via  text not null check (granted_via in ('telegram','paper','teacher')),
   parent_name  text,                         -- только для kind = 'parental'
-  recorded_by  uuid references users(id),    -- кто внёс бумажное согласие (преподаватель / админ)
+  recorded_by  uuid references users(id) on delete set null,  -- кто внёс бумажное согласие (преподаватель / админ)
   granted_at   timestamptz not null default now(),
   revoked_at   timestamptz,
   check (kind <> 'parental' or parent_name is not null)
@@ -57,7 +60,7 @@ create table ai_messages (
   -- проверка преподавателем
   review_verdict text check (review_verdict in ('accepted','rejected','critical')),
   review_comment text,
-  reviewed_by    uuid references users(id),
+  reviewed_by    uuid references users(id) on delete set null,
   reviewed_at    timestamptz,
   created_at     timestamptz not null default now()
 );
