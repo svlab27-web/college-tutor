@@ -144,7 +144,7 @@ erDiagram
 | `001_init.sql` | 10 базовых таблиц, RLS, предметы `python` / `math` | — (каркас) | 13.10.2026 · `college-tutor` |
 | `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
 | `003_lesson_languages.sql` | Уроки на двух языках: `lessons.language`, таблица `lesson_translations`, `users.ui_language`, `attempts.language`, `ai_messages.language` | #21 | 13.10.2026 · `college-tutor` |
-| `004_group_invites.sql` | Ссылка на группу: `invites.max_uses` / `uses` / `revoked_at` / `created_by`, формат токена, `group_members.invite_token` | этот PR | — |
+| `004_group_invites.sql` | Ссылка на группу: `invites.max_uses` / `uses` / `revoked_at` / `created_by`, формат токена, `group_members.invite_token` | #35 | — |
 
 `seed.sql` в `college-tutor` не применялся.
 
@@ -161,7 +161,7 @@ erDiagram
 ## 8. Следующие миграции (черновик)
 
 - ~~**003** — уроки на двух языках~~ — сделано и применено (#21).
-- **004** — ссылка на группу (#5) — этот PR.
+- **004** — ссылка на группу (#5) — #35.
 - **005** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
 - Учёт расходов на AI и дневной лимит — отдельная миграция не нужна: токены и стоимость пишутся в `ai_messages` (002), индекс `ai_messages_user_day` уже есть. Лимит считает `api/`.
 - Согласия и год рождения — сделаны в 002.
