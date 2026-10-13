@@ -164,3 +164,65 @@ test('плохие данные → 400 с понятным текстом', opt
   assert.equal((await call('POST', '/api/me', id, { body: { birth_year: 1900 } })).status, 400);
   assert.equal((await call('POST', '/api/me', id, { body: { ui_language: 'en' } })).status, 400);
 });
+
+// ── Список колледжа (005): согласие родителя засчитывается при входе ──
+async function listedGroup(rows: { full_name: string; birth_year: number | null }[]) {
+  const sql = db();
+  const [{ id }] = await sql<{ id: string }[]>`insert into groups (title) values ('ПР-22 тест') returning id`;
+  const token = `g_${run}_${id.slice(0, 8)}`;
+  await sql`insert into invites (token, group_id, max_uses, expires_at) values (${token}, ${id}, null, now() + interval '7 days')`;
+  for (const r of rows) {
+    await sql`insert into parental_consent_list (group_id, full_name, birth_year, parent_name, document_ref)
+              values (${id}, ${r.full_name}, ${r.birth_year}, 'Родитель Тест', 'список при зачислении, приказ № 1')`;
+  }
+  return token;
+}
+
+test('младше 18 есть в списке колледжа → согласие родителя засчитано автоматически', opts, async () => {
+  const token = await listedGroup([{ full_name: 'Сёмина Айгерим', birth_year: 2010 }]);
+  const id = ++nextUserId;
+  await call('GET', '/api/me', id, { startParam: token });
+  await call('POST', '/api/consent', id, { body: { doc_version: CONSENT_DOC_VERSION } });
+  // другое написание: регистр, пробелы, е вместо ё
+  const me = await call('POST', '/api/me', id, { body: { full_name: 'семина   АЙГЕРИМ', birth_year: 2010 } });
+  assert.equal(me.body.minor, true);
+  assert.deepEqual(me.body.needs, []);
+  assert.equal(me.body.can_save_progress, true);
+  const sql = db();
+  const [c] = await sql<{ granted_via: string; document_ref: string }[]>`
+    select granted_via, document_ref from consents where user_id = ${me.body.user.id} and kind = 'parental'`;
+  assert.equal(c.granted_via, 'college_list');
+  assert.equal(c.document_ref, 'список при зачислении, приказ № 1');
+});
+
+test('та же строка списка не подтверждает второго студента', opts, async () => {
+  const token = await listedGroup([{ full_name: 'Петров Иван', birth_year: null }]);
+  const first = ++nextUserId;
+  await call('GET', '/api/me', first, { startParam: token });
+  const a = await call('POST', '/api/me', first, { body: { full_name: 'Петров Иван', birth_year: 2011 } });
+  assert.equal(a.body.needs.includes('parental_consent'), false);
+  const second = ++nextUserId;
+  await call('GET', '/api/me', second, { startParam: token });
+  const b = await call('POST', '/api/me', second, { body: { full_name: 'Петров Иван', birth_year: 2011 } });
+  assert.equal(b.body.needs.includes('parental_consent'), true);
+});
+
+test('год рождения не совпал или студента нет в списке → решает преподаватель', opts, async () => {
+  const token = await listedGroup([{ full_name: 'Ахметов Арман', birth_year: 2009 }]);
+  const wrongYear = ++nextUserId;
+  await call('GET', '/api/me', wrongYear, { startParam: token });
+  const a = await call('POST', '/api/me', wrongYear, { body: { full_name: 'Ахметов Арман', birth_year: 2010 } });
+  assert.equal(a.body.needs.includes('parental_consent'), true);
+  const notListed = ++nextUserId;
+  await call('GET', '/api/me', notListed, { startParam: token });
+  const b = await call('POST', '/api/me', notListed, { body: { full_name: 'Нет Такого', birth_year: 2010 } });
+  assert.equal(b.body.needs.includes('parental_consent'), true);
+});
+
+test('студент не в этой группе — чужой список не помогает', opts, async () => {
+  await listedGroup([{ full_name: 'Чужая Группа', birth_year: 2010 }]);
+  const id = ++nextUserId;
+  await call('GET', '/api/me', id, { startParam: groupToken });
+  const me = await call('POST', '/api/me', id, { body: { full_name: 'Чужая Группа', birth_year: 2010 } });
+  assert.equal(me.body.needs.includes('parental_consent'), true);
+});

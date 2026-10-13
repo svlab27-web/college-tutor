@@ -1,34 +1,47 @@
 // GET /api/me  — кто я, мои группы, что ещё нужно; по start_param — вступление в группу
 // POST /api/me — ФИО, год рождения, язык интерфейса
 
+import type { TelegramIdentity } from '../auth';
 import { db } from '../db';
 import { HttpError, json } from '../http';
 import { isInviteToken, joinByInvite, type JoinResult } from '../invites';
+import { matchCollegeList } from '../parental';
 import {
   CONSENT_DOC_VERSION,
   cleanBirthYear,
   cleanFullName,
   cleanLanguage,
+  isMinor,
   profileStatus,
 } from '../profile';
 import { readJson, requireIdentity } from '../session';
 import { consentFlags, upsertUser, userGroups, type UserRow } from '../users';
 
-async function profile(user: UserRow, languageCode: string | undefined, join: JoinResult | null) {
+async function profile(user: UserRow, identity: TelegramIdentity, join: JoinResult | null) {
   const sql = db();
+  const currentYear = new Date().getFullYear();
   const [groups, flags] = await Promise.all([
     userGroups(sql, user.id),
     consentFlags(sql, user.id, CONSENT_DOC_VERSION),
   ]);
+  // Младше 18 без согласия родителя — ищем в списке колледжа (005)
+  if (!flags.hasParentalConsent && user.full_name && user.birth_year !== null && isMinor(user.birth_year, currentYear)) {
+    const matched = await matchCollegeList(
+      sql,
+      { id: user.id, full_name: user.full_name, birth_year: user.birth_year },
+      identity.telegramUserId,
+    );
+    if (matched) flags.hasParentalConsent = true;
+  }
   const status = profileStatus({
     fullName: user.full_name,
     birthYear: user.birth_year,
     ...flags,
-    currentYear: new Date().getFullYear(),
+    currentYear,
   });
   // Язык: выбор студента → язык Telegram → язык первой группы → русский
   const language =
-    user.ui_language ?? cleanLanguage(languageCode) ?? cleanLanguage(groups[0]?.language) ?? 'ru';
+    user.ui_language ?? cleanLanguage(identity.languageCode) ?? cleanLanguage(groups[0]?.language) ?? 'ru';
 
   return {
     user: {
@@ -57,7 +70,7 @@ export async function getMe(req: Request): Promise<Response> {
     : null;
   // После вступления по персональному приглашению могли поменяться ФИО и роль
   const fresh = join?.status === 'joined' ? await upsertUser(db(), identity.telegramUserId) : user;
-  return json(200, await profile(fresh, identity.languageCode, join));
+  return json(200, await profile(fresh, identity, join));
 }
 
 export async function postMe(req: Request): Promise<Response> {
@@ -100,5 +113,5 @@ export async function postMe(req: Request): Promise<Response> {
     where id = ${user.id}
     returning id, role, full_name, full_name_source, birth_year, ui_language`;
 
-  return json(200, await profile(updated, identity.languageCode, null));
+  return json(200, await profile(updated, identity, null));
 }
