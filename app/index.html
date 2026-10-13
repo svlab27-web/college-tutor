@@ -68,8 +68,8 @@ const s=()=>all[active],c=()=>courses[active];
 function save(){try{localStorage.setItem(KEY,JSON.stringify({version:2,active,courses:all}))}catch(e){storageOK=false}}
 function esc(x){return String(x).replace(/[&<>"']/g,k=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[k]))}
 const fmt=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n);
-// «1 700», «1700 ₸», «10 м», «225 м²» → число: убираем пробелы (в т.ч. неразрывные) и единицы
-const number=v=>{const x=String(v).replace(/[\s\u00a0\u202f]/g,'').replace(/₸|тг\.?|м²|мм|м/gi,'').replace(',','.');return x===''?NaN:Number(x)};
+// «1 700», «1700 ₸», «10 м», «225 м²», «225 м2», «225 кв.м» → число: убираем пробелы (в т.ч. неразрывные) и единицы
+const number=v=>{const x=String(v).replace(/[\s\u00a0\u202f]/g,'').replace(/₸|тг\.?|кв\.?м|м\^?2|м²|мм|м/gi,'').replace(',','.');return x===''?NaN:Number(x)};
 function log(type,detail){s().events.push({time:new Date().toISOString(),step:s().step,type,detail});s().events=s().events.slice(-100);save()}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.remove('hidden');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.classList.add('hidden'),2800)}
 function msg(text,type='neutral'){feedback={text,type};}
