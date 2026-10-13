@@ -10,6 +10,19 @@
 .sidebar,.main,.nav{min-width:0}@media(max-width:900px){.app{grid-template-columns:minmax(0,1fr)}}
 .yard-canvas{height:220px}@media(max-width:680px){.nav{flex-wrap:wrap;overflow:visible}.nav button{flex:1 0 auto;text-align:center;justify-content:center}}
 </style>
+<script>
+// Прототип: ошибки показываем прямо на экране — в Telegram на телефоне нет консоли
+(function(){
+  function show(text){
+    if(!document.body){document.addEventListener('DOMContentLoaded',()=>show(text));return}
+    const box=document.getElementById('js-errors')||document.body.appendChild(Object.assign(document.createElement('pre'),{id:'js-errors'}));
+    box.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99;max-height:40vh;overflow:auto;margin:0;padding:10px;border-radius:8px;background:#7a1f1f;color:#fff;font:11px/1.4 ui-monospace,monospace;white-space:pre-wrap';
+    box.textContent+=text+'\n';
+  }
+  window.addEventListener('error',e=>show('Ошибка: '+e.message+(e.lineno?' (строка '+e.lineno+':'+e.colno+')':'')+(e.error&&e.error.stack?'\n'+e.error.stack:'')));
+  window.addEventListener('unhandledrejection',e=>show('Ошибка: '+(e.reason&&e.reason.message||e.reason)));
+})();
+</script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -109,6 +122,8 @@ save();render();
   if(!tg||!tg.initData)return;
   document.documentElement.classList.add('in-telegram');
   tg.ready();tg.expand();
+  // Свайп вниз при прокрутке урока не сворачивает приложение
+  if(tg.isVersionAtLeast('7.7'))tg.disableVerticalSwipes();
   try{tg.setHeaderColor('#f5f6f1');tg.setBackgroundColor('#f5f6f1')}catch(e){}
   // Имя только для приветствия; личность студента подтверждает сервер по initData (задача #5)
   const u=tg.initDataUnsafe&&tg.initDataUnsafe.user;
