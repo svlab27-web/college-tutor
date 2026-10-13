@@ -9,7 +9,7 @@
 
 .sidebar,.main,.nav{min-width:0}@media(max-width:900px){.app{grid-template-columns:minmax(0,1fr)}}
 .yard-canvas{height:220px}@media(max-width:680px){.nav{flex-wrap:wrap;overflow:visible}.nav button{flex:1 0 auto;text-align:center;justify-content:center}}
-</style>
+/* Тёмная тема: включается по теме Telegram или настройке системы */html[data-theme=dark]{--ink:#e4ebe6;--muted:#9fb0a7;--bg:#121916;--line:#2b3832;--white:#1a231f;color-scheme:dark}html[data-theme=dark] .sidebar,html[data-theme=dark] .lab{background:#161f1b}html[data-theme=dark] .card,html[data-theme=dark] .choice,html[data-theme=dark] .metric,html[data-theme=dark] .course-card,html[data-theme=dark] .input{background:var(--white)}html[data-theme=dark] .nav button.active,html[data-theme=dark] .subject-tabs button.active{background:#23302a;border-color:#4f6b48;color:#a9d6b8}html[data-theme=dark] .secondary{background:#22302a;color:#a9d6b8}html[data-theme=dark] .primary:hover{background:#2a7a5e}html[data-theme=dark] .avatar,html[data-theme=dark] .status,html[data-theme=dark] .resource-row code{background:#26322c}html[data-theme=dark] .track span,html[data-theme=dark] .home-track{background:#2a3530}html[data-theme=dark] .lesson-copy{color:var(--muted)}html[data-theme=dark] .choice:hover{background:#1f2b25;border-color:#4f7d5c}html[data-theme=dark] .choice.selected{background:#24331f;border-color:#7fa35f}html[data-theme=dark] .choice-label,html[data-theme=dark] .input{border-color:#34423b}html[data-theme=dark] .feedback{background:#1f3020;color:#b9dcae}html[data-theme=dark] .feedback.warn{background:#3a2518;color:#f2b48c}html[data-theme=dark] .feedback.neutral{background:#222b26;color:#b3c2b8}html[data-theme=dark] .tutor-card,html[data-theme=dark] .concept{background:#1c2721}html[data-theme=dark] .tutor-card button{background:#212d27;border-color:#35463c;color:#a9d6b8}html[data-theme=dark] .course-open{background:#222c27;color:#cfe0d6}html[data-theme=dark] .topic-label{color:#b8c9bf}html[data-theme=dark] .skill-check{color:#6f7c75}html[data-theme=dark] .yard{background:#2c3a22}html[data-theme=dark] .yard span{color:#d6e8c0}html[data-theme=dark] .dialog-line.client{background:#1f2a30}html[data-theme=dark] .dialog-line.student{background:#22301e}</style>
 <script>
 // Прототип: ошибки показываем прямо на экране — в Telegram на телефоне нет консоли
 (function(){
@@ -24,6 +24,16 @@
 })();
 </script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+// Тема: в Telegram — как в Telegram, в браузере — как в системе
+(function(){
+  const set=d=>{document.documentElement.dataset.theme=d?'dark':'light'};
+  const tg=window.Telegram&&window.Telegram.WebApp;
+  if(tg&&tg.initData){set(tg.colorScheme==='dark');tg.onEvent('themeChanged',()=>set(tg.colorScheme==='dark'));return}
+  const mq=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)');
+  if(mq){set(mq.matches);mq.addEventListener&&mq.addEventListener('change',e=>set(e.matches))}
+})();
+</script>
 </head>
 <body>
 <div class="app">
@@ -124,7 +134,8 @@ save();render();
   tg.ready();tg.expand();
   // Свайп вниз при прокрутке урока не сворачивает приложение
   if(tg.isVersionAtLeast('7.7'))tg.disableVerticalSwipes();
-  try{tg.setHeaderColor('#f5f6f1');tg.setBackgroundColor('#f5f6f1')}catch(e){}
+  const paint=()=>{const c=tg.colorScheme==='dark'?'#121916':'#f5f6f1';try{tg.setHeaderColor(c);tg.setBackgroundColor(c)}catch(e){}};
+  paint();tg.onEvent('themeChanged',paint);
   // Имя только для приветствия; личность студента подтверждает сервер по initData (задача #5)
   const u=tg.initDataUnsafe&&tg.initDataUnsafe.user;
   if(u&&u.first_name){
