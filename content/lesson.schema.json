@@ -1,54 +1,296 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Урок «Мой колледж»",
-  "description": "Один файл = одна миссия. Поля expected/tests/solution — только для сервера, в браузер не отдаются.",
+  "description": "Один файл = одна миссия. Только для сервера, в браузер не отдаются: expected, tests, solution, checks[].expect, number_part.expected, variants (целиком — там ответы для других студентов), free_input.",
   "type": "object",
-  "required": ["subject", "slug", "title", "skill", "minutes", "story", "steps", "status"],
+  "required": [
+    "subject",
+    "slug",
+    "title",
+    "skill",
+    "minutes",
+    "story",
+    "steps",
+    "status"
+  ],
   "properties": {
-    "subject": { "enum": ["python", "math"] },
-    "slug": { "type": "string", "pattern": "^[0-9]{2}-[a-z0-9-]+$" },
-    "title": { "type": "string" },
-    "skill": { "type": "string", "description": "Микронавык, который тренирует урок" },
-    "minutes": { "type": "integer", "minimum": 1 },
-    "language": { "enum": ["ru", "kk"], "default": "ru" },
-    "story": { "type": "string", "description": "Жизненная ситуация миссии" },
-    "status": { "enum": ["draft", "review", "approved"], "description": "approved ставит преподаватель" },
-    "approved_by": { "type": "string" },
-    "material": { "type": "string", "description": "Утверждённый фрагмент теории — AI опирается только на него" },
+    "subject": {
+      "enum": [
+        "python",
+        "math"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[0-9]{2}-[a-z0-9-]+$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "skill": {
+      "type": "string",
+      "description": "Микронавык, который тренирует урок"
+    },
+    "minutes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "language": {
+      "enum": [
+        "ru",
+        "kk"
+      ],
+      "default": "ru"
+    },
+    "story": {
+      "type": "string",
+      "description": "Жизненная ситуация миссии"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "review",
+        "approved"
+      ],
+      "description": "approved ставит преподаватель"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "material": {
+      "type": "string",
+      "description": "Утверждённый фрагмент теории — AI опирается только на него"
+    },
     "steps": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "title", "prompt", "answer_type", "hints"],
+        "required": [
+          "id",
+          "title",
+          "prompt",
+          "answer_type",
+          "hints"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "title": { "type": "string" },
-          "prompt": { "type": "string" },
-          "independent": { "type": "boolean", "default": false, "description": "Самостоятельная задача: подсказки отключены" },
-          "answer_type": { "enum": ["choice", "number", "formula", "text", "code"] },
-          "options": { "type": "array", "items": { "type": "string" } },
-          "expected": { "description": "choice: индекс; number: {value, tolerance}; formula/text: эталон" },
-          "starter_code": { "type": "string" },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "independent": {
+            "type": "boolean",
+            "default": false,
+            "description": "Самостоятельная задача: подсказки отключены"
+          },
+          "answer_type": {
+            "enum": [
+              "choice",
+              "number",
+              "formula",
+              "text",
+              "code"
+            ]
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expected": {
+            "description": "choice: индекс; number: {value, tolerance}; formula/text: эталон"
+          },
+          "starter_code": {
+            "type": "string"
+          },
           "tests": {
             "type": "array",
             "description": "code: скрытые тесты, запускаются на сервере",
-            "items": { "type": "object", "required": ["call", "expect"], "properties": { "call": { "type": "string" }, "expect": {} } }
+            "items": {
+              "type": "object",
+              "required": [
+                "call",
+                "expect"
+              ],
+              "properties": {
+                "call": {
+                  "type": "string"
+                },
+                "expect": {}
+              }
+            }
           },
-          "solution": { "type": "string", "description": "Эталонное решение по шагам — для AI и преподавателя" },
+          "solution": {
+            "type": "string",
+            "description": "Эталонное решение по шагам — для AI и преподавателя"
+          },
           "hints": {
             "type": "array",
             "maxItems": 3,
-            "description": "Лестница: 1 намёк, 2 наводящий вопрос, 3 похожий пример",
-            "items": { "type": "string" }
+            "description": "Лестница: 1 намёк, 2 наводящий вопрос, 3 похожий пример. Готовый ответ не даём",
+            "items": {
+              "type": "string"
+            }
           },
           "common_mistakes": {
             "type": "array",
-            "items": { "type": "object", "required": ["pattern", "feedback"], "properties": { "pattern": { "type": "string" }, "feedback": { "type": "string" } } }
+            "items": {
+              "type": "object",
+              "required": [
+                "pattern",
+                "feedback"
+              ],
+              "properties": {
+                "pattern": {
+                  "type": "string"
+                },
+                "feedback": {
+                  "type": "string"
+                }
+              }
+            }
           },
-          "variants": { "type": "array", "description": "Другие варианты самостоятельной задачи (против списывания)" }
+          "variants": {
+            "type": "array",
+            "description": "Другие варианты самостоятельной задачи (против списывания). Только для сервера целиком: в браузер уходит один выбранный вариант без expected",
+            "items": {
+              "type": "object",
+              "required": [
+                "prompt"
+              ],
+              "properties": {
+                "prompt": {
+                  "type": "string"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "expected": {
+                  "description": "choice: индекс; number: {value, tolerance}"
+                },
+                "number_part": {
+                  "$ref": "#/properties/steps/items/properties/number_part"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "call",
+                      "expect"
+                    ],
+                    "properties": {
+                      "call": {
+                        "type": "string"
+                      },
+                      "expect": {}
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "simple": {
+            "type": "string",
+            "description": "«Объясни проще»: бытовое сравнение для идеи шага"
+          },
+          "code": {
+            "type": "string",
+            "description": "Фрагмент кода, который показывается в задании (только для чтения)"
+          },
+          "checks": {
+            "type": "array",
+            "description": "Лаборатория: на каких значениях проверяем выбор студента и что должно получиться",
+            "items": {
+              "type": "object",
+              "required": [
+                "input",
+                "expect"
+              ],
+              "properties": {
+                "input": {},
+                "expect": {}
+              }
+            }
+          },
+          "number_part": {
+            "type": "object",
+            "description": "Вторая часть ответа числом (после выбора варианта)",
+            "required": [
+              "label",
+              "expected"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "expected": {
+                "type": "object",
+                "required": [
+                  "value",
+                  "tolerance"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "number"
+                  },
+                  "tolerance": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          },
+          "free_input": {
+            "type": "array",
+            "description": "Версия шага со свободным вводом (формула / код). Включается после #7 и #8 — решение 13.10.2026: на пилот пока выбор из вариантов",
+            "items": {
+              "type": "object",
+              "required": [
+                "prompt",
+                "answer_type"
+              ],
+              "properties": {
+                "prompt": {
+                  "type": "string"
+                },
+                "answer_type": {
+                  "enum": [
+                    "number",
+                    "formula",
+                    "text",
+                    "code"
+                  ]
+                },
+                "expected": {},
+                "starter_code": {
+                  "type": "string"
+                },
+                "tests": {
+                  "type": "array"
+                },
+                "solution": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       }
+    },
+    "variable": {
+      "type": "string",
+      "description": "Обозначение переменной в уроке (математика: x)"
     }
   }
 }
