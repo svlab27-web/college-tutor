@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Мой колледж — прототип для заказчика</title>
+<meta name="description" content="Как посмотреть прототип AI-тьютора «Мой колледж» в Telegram и что в нём уже работает">
+<style>
+:root{--ink:#182c29;--muted:#687872;--green:#21614c;--lime:#e0ef94;--bg:#f5f6f1;--line:#dfe5dc;--card:#fff;--warn-bg:#fff1e6;--warn:#8c491f}
+@media (prefers-color-scheme:dark){:root{--ink:#e4ebe6;--muted:#9fb0a7;--green:#5fae8a;--lime:#c9de6e;--bg:#121916;--line:#2b3832;--card:#1a231f;--warn-bg:#3a2518;--warn:#f2b48c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 56px}
+a{color:var(--green)}
+.eyebrow{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700}
+h1{font-size:34px;line-height:1.15;margin:8px 0 12px}
+h2{font-size:22px;margin:40px 0 12px}
+.lead{font-size:18px;color:var(--muted);max-width:680px}
+.hero{background:#214c3f;color:#fff;border-radius:18px;padding:26px;margin:24px 0;display:grid;gap:18px;grid-template-columns:1fr 1fr}
+.hero h3{margin:0 0 6px;font-size:17px}.hero p{margin:0;color:#d3e1d9;font-size:14px}
+.btn{display:inline-block;margin-top:12px;background:var(--lime);color:#25452e;border-radius:9px;padding:10px 16px;font-weight:700;text-decoration:none;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:12px 0}
+ol,ul{padding-left:22px;margin:8px 0}li{margin:6px 0}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.grid .card{margin:0}.grid h3{margin:0 0 6px;font-size:16px}.grid p{margin:0;font-size:14px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600;font-size:12px}
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.ok{background:#e3f1df;color:#2f5a2a}.next{background:#eceaf6;color:#4b4880}.draft{background:var(--warn-bg);color:var(--warn)}
+@media (prefers-color-scheme:dark){.ok{background:#1f3020;color:#b9dcae}.next{background:#26243a;color:#c9c6ef}}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:14px 16px;font-size:14px}
+.decision{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+footer{margin-top:48px;color:var(--muted);font-size:13px}
+@media (max-width:640px){h1{font-size:27px}.hero,.grid,.decision{grid-template-columns:1fr}.table-wrap{overflow-x:auto}}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow">Прототип · 13 октября 2026</div>
+<h1>«Мой колледж» — AI-тьютор в Telegram</h1>
+<p class="lead">Учебный помощник для студентов колледжа: короткие задачи из жизни, подсказки по шагам и самостоятельная проверка. Открывается прямо в Telegram, на русском и казахском.</p>
+
+<section class="hero">
+  <div><h3>Студент</h3><p>Открывает бота по ссылке преподавателя, нажимает <b>Start</b> и кнопку <b>«Открыть»</b> слева от поля ввода.</p><a class="btn" href="https://t.me/tutor_testbot">В Telegram →</a> <a class="btn" href="/">В браузере →</a></div>
+  <div><h3>Преподаватель</h3><p>Свой вход: группы, ссылки для студентов, прогресс, план занятий, задания и обращения.</p><a class="btn" href="https://t.me/tutor_testbot?startapp=teacher">В Telegram →</a> <a class="btn" href="/teacher.html">В браузере →</a></div>
+</section>
+
+<h2>Глазами студента — 10 минут</h2>
+<div class="card"><ol>
+  <li><b>Согласие.</b> При первом входе — экран согласия на обработку данных: для студентов 18+ и для родителей несовершеннолетних.</li>
+  <li><b>Язык.</b> Переключатель <b>РУС / ҚАЗ</b> в шапке. В Telegram с казахским языком приложение сразу открывается на казахском.</li>
+  <li><b>Программирование.</b> «Почини скидку в студенческом кафе»: найдите ошибку в условии, исправьте кассу и проверьте её на 4 заказах.</li>
+  <li><b>Подсказки.</b> Нажмите «Дай небольшую подсказку» несколько раз — помощь идёт ступенями: намёк → вопрос → пример, готовый ответ не даётся.</li>
+  <li><b>Высшая математика.</b> «Двор с самой большой площадью»: двигайте ползунок, затем решите новую задачу — двор у стены дома.</li>
+  <li><b>Самостоятельная задача.</b> Последний шаг без подсказок. Ответ можно писать как удобно: «1 700 ₸», «450 м2».</li>
+</ol></div>
+
+<h2>Глазами преподавателя — 5 минут</h2>
+<div class="card"><ol>
+  <li><b>Мои группы.</b> Создайте группу — получите ссылку для студентов: отправьте её в чат группы кнопкой «Поделиться в Telegram» или покажите <b>QR-код</b> на экране в аудитории. Студент открывает ссылку и сразу попадает в вашу группу.</li>
+  <li><b>Прогресс.</b> Сколько студентов активны, средний прогресс, <b>кто застрял</b> (две неудачи подряд или много подсказок), <b>слабые темы группы</b>, таблица по студентам, выгрузка в Excel.</li>
+  <li><b>План занятий.</b> Загрузите свой КТП — AI готовит черновики задач по каждой теме, вы проверяете и <b>утверждаете</b>. Студенты видят только утверждённое.</li>
+  <li><b>Задания.</b> Назначьте урок группе со сроком — видно, сколько студентов уже выполнили.</li>
+  <li><b>Обращения.</b> Кнопка студента «Нужна помощь» — вопрос приходит сюда и преподавателю в Telegram.</li>
+</ol></div>
+
+<h2>Четыре дисциплины</h2>
+<div class="grid">
+  <div class="card"><h3>Программирование</h3><p>Python: условия и граничные значения — почини скидку в кафе.</p></div>
+  <div class="card"><h3>Высшая математика</h3><p>Производная и оптимизация — двор с самой большой площадью.</p></div>
+  <div class="card"><h3>Спецтехнологии</h3><p>Демо: контроль размеров детали по допуску 20 ± 0,2 мм.</p></div>
+  <div class="card"><h3>Спецдисциплины</h3><p>Демо: диалог с клиентом, которому привезли не тот товар.</p></div>
+</div>
+
+<h2>Что готово и что дальше</h2>
+<div class="card table-wrap"><table>
+  <thead><tr><th>Возможность</th><th>Статус</th></tr></thead>
+  <tbody>
+    <tr><td>Mini App в Telegram: тема, тёмный режим, кнопка «Назад», проверено на iPhone</td><td><span class="tag ok">Готово</span></td></tr>
+    <tr><td>Два пилотных урока (Python, математика) по 4 шага, лестница подсказок, самостоятельная задача</td><td><span class="tag ok">Готово</span></td></tr>
+    <tr><td>Русский и казахский язык интерфейса и уроков</td><td><span class="tag draft">На проверку заказчика</span></td></tr>
+    <tr><td>Согласие на обработку данных (18+ и для родителей)</td><td><span class="tag draft">На проверку заказчика</span></td></tr>
+    <tr><td>База данных (Supabase): студенты, группы, попытки, прогресс, согласия, переводы</td><td><span class="tag ok">Готово</span></td></tr>
+    <tr><td>Вход через бота по приглашению группы, прогресс на сервере вместо браузера</td><td><span class="tag next">Следующий этап</span></td></tr>
+    <tr><td>Проверка ответов на сервере — правильные ответы не видны в браузере</td><td><span class="tag next">Следующий этап</span></td></tr>
+    <tr><td>AI-подсказки по материалам урока (без передачи личных данных)</td><td><span class="tag next">Следующий этап</span></td></tr>
+    <tr><td>Студент пишет код на Python и формулы сам, а не выбирает из вариантов</td><td><span class="tag next">Следующий этап</span></td></tr>
+    <tr><td>Кабинет преподавателя: группы и ссылки для студентов, QR, прогресс, «кто застрял», слабые темы, план занятий с черновиками AI, задания, обращения</td><td><span class="tag ok">Готово в демо</span></td></tr>
+    <tr><td>Кабинет на реальных данных: вход преподавателя по приглашению колледжа, группы и прогресс на сервере</td><td><span class="tag next">Следующий этап</span></td></tr>
+  </tbody>
+</table></div>
+<p class="note">Это демо: результаты сохраняются только в браузере, AI пока не подключён — подсказки заранее подготовлены, правильные ответы проверяются на телефоне. Тексты уроков и согласия — черновики на ваше утверждение.</p>
+
+<h2>Что нужно от вас</h2>
+<div class="card"><ul>
+  <li><b>Казахский перевод</b> интерфейса и уроков — проверить или передать носителю языка.</li>
+  <li><b>Согласие на обработку данных</b> — вписать наименование колледжа и срок хранения, согласовать с юристом, решить, как оформляется согласие родителей.</li>
+  <li><b>Уроки</b> — подтвердить задачи, подсказки и ответы (лучше преподавателем предмета).</li>
+  <li><b>Пилот</b> — группы, преподаватели и даты первого занятия.</li>
+</ul></div>
+
+<h2>Ваше решение</h2>
+<div class="decision">
+  <div class="card"><h3>✓ Одобрить</h3><p>Переходим к следующему этапу: вход по приглашению, прогресс на сервере, AI-подсказки.</p></div>
+  <div class="card"><h3>↺ На доработку</h3><p>Напишите замечания списком — по экрану или уроку, со скриншотом, если удобно. Вернёмся с исправленной версией.</p></div>
+</div>
+
+<footer>«Мой колледж» · прототип AI-тьютора · Telegram Mini App · RU / KZ</footer>
+</main>
+</body>
+</html>
