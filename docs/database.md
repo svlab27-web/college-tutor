@@ -60,8 +60,8 @@ erDiagram
 | `lesson_translations` | Урок на другом языке — из `*.kk.json` (003) | `(lesson_id, language)`, `content` (jsonb), `status` = `draft` / `review` / `approved`, `approved_by` |
 | `groups` | Учебные группы | `title`, `language` (`ru` / `kk`) |
 | `users` | Студенты и преподаватели | `telegram_user_id` (уникальный), `role`, `full_name` + `full_name_source`, `birth_year`, `delete_after`, `ui_language` (003), настройки напоминаний |
-| `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher` |
-| `invites` | Одноразовые приглашения в группу | `token`, `group_id`, `role`, `full_name` (персональное приглашение), `expires_at`, `used_by` |
+| `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher`, `invite_token` — по какой ссылке вступил (004) |
+| `invites` | Ссылка на группу (многоразовая, со сроком) или персональное одноразовое приглашение (004) | `token` = `start_param`, `group_id`, `role`, `max_uses` / `uses`, `expires_at`, `revoked_at`, `created_by`; для персональных — `full_name`, `used_by` |
 | `attempts` | Каждый ответ студента | `answer` (jsonb), `is_correct`, `hints_used`, `is_independent`, `request_id`, `language` (003) |
 | `progress` | Где студент в уроке | `(user_id, lesson_id)`, `current_step`, `completed_steps`, `completed_at` |
 | `hint_events` | Каждая взятая подсказка | `level` 1–3, `source` = `script` / `ai` |
@@ -72,12 +72,15 @@ erDiagram
 ## 3. Основные сценарии
 
 ### Вход студента (#5)
-1. Студент открывает `t.me/<бот>?startapp=<token>`.
-2. `api/` проверяет подпись `initData` (HMAC по `BOT_TOKEN`) и свежесть `auth_date`.
+1. Преподаватель создаёт **ссылку на группу** со сроком действия и раздаёт её всем (чат группы или QR): `t.me/tutornvl_bot?startapp=<token>`.
+2. Студент открывает ссылку. `api/` проверяет подпись `initData` (HMAC по `BOT_TOKEN`) и свежесть `auth_date`.
    **Никогда** не доверяем `initDataUnsafe` и `username`.
 3. По `telegram_user_id` находим или создаём `users`.
-4. Если пришёл `token`: проверяем `invites` (не использован, не истёк) → создаём `group_members` → ставим `used_by`, `used_at`.
-   Токен одноразовый: повторное открытие той же ссылки просто открывает приложение.
+4. `start_param` = `token`: в одной транзакции добавляем `group_members` (с `invite_token`) и увеличиваем `invites.uses`, если ссылка не отозвана, не истекла и не исчерпан `max_uses`. Подробно — в шапке `004_group_invites.sql`.
+   Студент уже в группе → приглашение не расходуется, приложение просто открывается.
+5. Первый вход: ФИО, год рождения, согласие (`consents`). **Младше 18** без родительского согласия к урокам с сохранением прогресса не пускаем — только демо без сохранения, пока преподаватель не внесёт согласие родителя (решение 13.10.2026).
+
+Персональные одноразовые приглашения (`max_uses = 1`, `full_name`) остаются — например, вход преподавателя от колледжа.
 
 ### Выдача урока (#6)
 - `api/` берёт `lessons.content` и **вырезает** поля `expected`, `tests`, `solution`, `common_mistakes` перед отправкой в браузер.
@@ -125,7 +128,7 @@ erDiagram
 
 ## 6. Миграции
 
-- Имя: `NNN_кратко.sql` — следующая свободная: `004_teacher_indexes.sql`.
+- Имя: `NNN_кратко.sql` — следующая свободная: `005_teacher_indexes.sql`.
 - **Применённую миграцию не меняем** — только новая сверху.
 - Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
   Позже можно перейти на Supabase CLI (`supabase db push`).
@@ -141,6 +144,7 @@ erDiagram
 | `001_init.sql` | 10 базовых таблиц, RLS, предметы `python` / `math` | — (каркас) | 13.10.2026 · `college-tutor` |
 | `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
 | `003_lesson_languages.sql` | Уроки на двух языках: `lessons.language`, таблица `lesson_translations`, `users.ui_language`, `attempts.language`, `ai_messages.language` | #21 | 13.10.2026 · `college-tutor` |
+| `004_group_invites.sql` | Ссылка на группу: `invites.max_uses` / `uses` / `revoked_at` / `created_by`, формат токена, `group_members.invite_token` | этот PR | — |
 
 `seed.sql` в `college-tutor` не применялся.
 
@@ -157,7 +161,8 @@ erDiagram
 ## 8. Следующие миграции (черновик)
 
 - ~~**003** — уроки на двух языках~~ — сделано и применено (#21).
-- **004** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
+- **004** — ссылка на группу (#5) — этот PR.
+- **005** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
 - Учёт расходов на AI и дневной лимит — отдельная миграция не нужна: токены и стоимость пишутся в `ai_messages` (002), индекс `ai_messages_user_day` уже есть. Лимит считает `api/`.
 - Согласия и год рождения — сделаны в 002.
 - Срок хранения учебных данных и удаление по запросу — решить до пилота (поле `users.delete_after` уже есть, нужна процедура).
