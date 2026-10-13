@@ -24,6 +24,11 @@
 })();
 </script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+// Вход преподавателя: t.me/tutor_testbot?startapp=teacher или ?role=teacher → кабинет (демо; в сервисе роль выдаёт сервер, #5)
+(function(){var tg=window.Telegram&&window.Telegram.WebApp,sp=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param;
+if(sp==='teacher'||/[?&]role=teacher\b/.test(location.search))location.replace('teacher.html'+location.hash)})();
+</script>
 <script src="i18n.js"></script>
 <script>
 // Тема: в Telegram — как в Telegram, в браузере — как в системе
@@ -192,4 +197,10 @@ save();render();
 })();
 </script>
 <script src="consent.js"></script>
+<script>
+// Студент пришёл по ссылке группы (startapp=g_КОД) — демо-подтверждение; в сервисе вступление делает сервер (#5)
+(function(){var tg=window.Telegram&&window.Telegram.WebApp,sp=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param;
+if(!sp||sp.indexOf('g_')!==0)return;var k='my-college-joined-'+sp;try{if(localStorage.getItem(k))return;localStorage.setItem(k,'1')}catch(e){}
+setTimeout(function(){toast('Ты присоединился к группе преподавателя. Задания появятся в «Моё занятие».')},600)})();
+</script>
 </body></html>
