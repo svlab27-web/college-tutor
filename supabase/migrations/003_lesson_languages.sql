@@ -11,10 +11,20 @@
 --   python/01-skidka-v-kafe.json     — основной (ru), language: "ru"
 --   python/01-skidka-v-kafe.kk.json  — перевод (kk), language: "kk", тот же slug
 -- Синхронизация (отдельная задача): .json → lessons.content, .kk.json → lesson_translations.
--- Перевод принимается, только если совпадает структура с основным файлом:
--- те же step id, answer_type, expected, tests, число options и hints.
--- Переводятся только тексты: title, story, material, prompt, options, hints,
--- common_mistakes.feedback, solution.
+-- Перевод принимается, только если совпадает структура с основным файлом
+-- (поля схемы уроков v1, PR #23):
+--   шаги:        id, answer_type, independent, expected, tests, checks,
+--                number_part.expected, число options и hints;
+--   variants:    число вариантов, их expected и number_part.expected;
+--   free_input:  answer_type, expected, tests;
+--   common_mistakes: pattern.
+-- Переводятся только тексты:
+--   урок:        title, skill, story, material;
+--   шаг:         title, prompt, options, hints, simple, solution,
+--                common_mistakes.feedback, number_part.label,
+--                code — только имена/подписи в показываемом коде (напр. сумма_заказа);
+--   variants:    prompt, options;
+--   free_input:  prompt, solution.
 -- Как и в 001/002: RLS включён, политик нет — доступ только через api/.
 
 -- ── 1. Основной язык урока ───────────────────────────────────
