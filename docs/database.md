@@ -1,7 +1,7 @@
 # База данных (Supabase)
 
 Владелец зоны: @Ehai1911 · ревью: @svlab27-web
-Статус: миграции 001 и 002 применены в Supabase-проекте `college-tutor` · 13.10.2026
+Статус: миграции 001, 002 и 003 применены в Supabase-проекте `college-tutor` · 13.10.2026
 
 ## Коротко
 
@@ -21,6 +21,7 @@
 3. SQL Editor → выполнить по порядку все файлы из `supabase/migrations/` (см. раздел 6):
    - `001_init.sql`
    - `002_fio_consents_ai.sql`
+   - `003_lesson_languages.sql`
    - (только dev) `supabase/seed.sql`
    - `NOTIFY pgrst, 'reload schema';` — иначе API Supabase не видит новые таблицы
 4. Project Settings → API:
@@ -49,22 +50,24 @@ erDiagram
     users ||--o{ consents : "согласия"
     users ||--o{ ai_messages : "диалог с AI"
     lessons ||--o{ ai_messages : ""
+    lessons ||--o{ lesson_translations : "переводы"
 ```
 
 | Таблица | Что хранит | Ключевые поля |
 |---|---|---|
 | `subjects` | Предметы пилота | `id` = `python` / `math` |
-| `lessons` | Урок целиком из `content/*.json` | `subject_id`, `slug`, `version`, `content` (jsonb), `is_published`, `approved_by` |
+| `lessons` | Урок целиком из `content/*.json` на основном языке | `subject_id`, `slug`, `version`, `language` (003, по умолчанию `ru`), `content` (jsonb), `is_published`, `approved_by` |
+| `lesson_translations` | Урок на другом языке — из `*.kk.json` (003) | `(lesson_id, language)`, `content` (jsonb), `status` = `draft` / `review` / `approved`, `approved_by` |
 | `groups` | Учебные группы | `title`, `language` (`ru` / `kk`) |
-| `users` | Студенты и преподаватели | `telegram_user_id` (уникальный), `role`, `full_name` + `full_name_source`, `birth_year`, `delete_after`, настройки напоминаний |
+| `users` | Студенты и преподаватели | `telegram_user_id` (уникальный), `role`, `full_name` + `full_name_source`, `birth_year`, `delete_after`, `ui_language` (003), настройки напоминаний |
 | `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher` |
 | `invites` | Одноразовые приглашения в группу | `token`, `group_id`, `role`, `full_name` (персональное приглашение), `expires_at`, `used_by` |
-| `attempts` | Каждый ответ студента | `answer` (jsonb), `is_correct`, `hints_used`, `is_independent`, `request_id` |
+| `attempts` | Каждый ответ студента | `answer` (jsonb), `is_correct`, `hints_used`, `is_independent`, `request_id`, `language` (003) |
 | `progress` | Где студент в уроке | `(user_id, lesson_id)`, `current_step`, `completed_steps`, `completed_at` |
 | `hint_events` | Каждая взятая подсказка | `level` 1–3, `source` = `script` / `ai` |
 | `help_requests` | Обращения «нужна помощь» | `text`, `status` = `new` / `resolved` |
 | `consents` | Согласия на обработку ПД и родительские (002) | `kind`, `doc_version`, `granted_via`, `parent_name`, `telegram_user_id` (след после удаления студента), `revoked_at` |
-| `ai_messages` | Журнал AI-тьютора (002) | `question`, `answer`, `material_ref`, `status`, токены и `cost_usd`, `review_verdict` преподавателя |
+| `ai_messages` | Журнал AI-тьютора (002) | `question`, `answer`, `material_ref`, `status`, токены и `cost_usd`, `review_verdict` преподавателя, `language` (003) |
 
 ## 3. Основные сценарии
 
@@ -115,12 +118,14 @@ erDiagram
 - После merge скрипт синхронизации делает upsert в `lessons` по `(subject_id, slug, version)`.
 - Существенно изменили урок, а по нему уже есть попытки → поднимаем `version`, чтобы старые ответы ссылались на старую версию.
 - `is_published` и `approved_by` ставим, когда преподаватель утвердил урок (`status: "approved"` в JSON).
+- **Казахский (003, #15):** `NN-тема.kk.json` с тем же `slug` → `lesson_translations` для той же записи урока. Перевод принимается, только если структура совпадает с основным файлом; что должно совпадать и что переводится — в шапке `supabase/migrations/003_lesson_languages.sql`.
+- Язык интерфейса студента: `users.ui_language` → если пусто, `language_code` из Telegram → `groups.language`. Нет перевода урока — показываем основной язык.
 
 Скрипт синхронизации — отдельная задача (добавить в бэклог).
 
 ## 6. Миграции
 
-- Имя: `NNN_кратко.sql` — следующая свободная: `003_lesson_languages.sql`.
+- Имя: `NNN_кратко.sql` — следующая свободная: `004_teacher_indexes.sql`.
 - **Применённую миграцию не меняем** — только новая сверху.
 - Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
   Позже можно перейти на Supabase CLI (`supabase db push`).
@@ -135,8 +140,11 @@ erDiagram
 |---|---|---|---|
 | `001_init.sql` | 10 базовых таблиц, RLS, предметы `python` / `math` | — (каркас) | 13.10.2026 · `college-tutor` |
 | `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
+| `003_lesson_languages.sql` | Уроки на двух языках: `lessons.language`, таблица `lesson_translations`, `users.ui_language`, `attempts.language`, `ai_messages.language` | #21 | 13.10.2026 · `college-tutor` |
 
 `seed.sql` в `college-tutor` не применялся.
+
+Перед применением новую миграцию прогоняем в SQL Editor внутри `begin; … rollback;` — проверка на реальной схеме без изменений в базе.
 
 ## 7. Окружения и бэкапы
 
@@ -148,7 +156,7 @@ erDiagram
 
 ## 8. Следующие миграции (черновик)
 
-- **003** — уроки на двух языках (#15): урок остаётся одной записью с общими `step_id`, тексты `ru` / `kk` — отдельно (таблица переводов или `content` по языкам). Тогда прогресс не зависит от языка интерфейса, а `unique (subject_id, slug, version)` не мешает казахской версии. Нужна до начала переводов.
+- ~~**003** — уроки на двух языках~~ — сделано и применено (#21).
 - **004** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
 - Учёт расходов на AI и дневной лимит — отдельная миграция не нужна: токены и стоимость пишутся в `ai_messages` (002), индекс `ai_messages_user_day` уже есть. Лимит считает `api/`.
 - Согласия и год рождения — сделаны в 002.
@@ -157,7 +165,7 @@ erDiagram
 ## Открытые вопросы
 
 - [x] Чья учётка Supabase и регион — учётка Светы, Frankfurt (`eu-central-1`).
-- [x] Язык — оба: интерфейс и уроки на русском и казахском (решение 13.10.2026, #15). В базе — миграция 003.
+- [x] Язык — оба: интерфейс и уроки на русском и казахском (решение 13.10.2026, #15). В базе — миграция 003, применена.
 - [x] Возраст студентов — колледж с 15 лет, родительские согласия нужны (`consents.kind = 'parental'`, 002).
 - [x] ФИО — вводит сам студент при первом входе (`full_name_source = 'self'`).
 - [ ] AI-провайдер и дневной лимит расходов на студента (считается по `ai_messages`).
