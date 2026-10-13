@@ -4,7 +4,7 @@
 (function(){
 const tg=window.Telegram&&window.Telegram.WebApp, inTg=!!(tg&&tg.initData);
 const lang=document.documentElement.lang==='kk'?'kk':'ru';
-const BOT='tutor_testbot';
+const BOT='tutornvl_bot';
 const STORE='my-college-teacher-demo';
 
 // ── Тексты ───────────────────────────────────────────────────
