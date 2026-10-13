@@ -48,6 +48,7 @@ erDiagram
     users ||--o{ help_requests : "нужна помощь"
     groups ||--o{ help_requests : ""
     users ||--o{ consents : "согласия"
+    groups ||--o{ parental_consent_list : "список колледжа"
     users ||--o{ ai_messages : "диалог с AI"
     lessons ||--o{ ai_messages : ""
     lessons ||--o{ lesson_translations : "переводы"
@@ -66,7 +67,8 @@ erDiagram
 | `progress` | Где студент в уроке | `(user_id, lesson_id)`, `current_step`, `completed_steps`, `completed_at` |
 | `hint_events` | Каждая взятая подсказка | `level` 1–3, `source` = `script` / `ai` |
 | `help_requests` | Обращения «нужна помощь» | `text`, `status` = `new` / `resolved` |
-| `consents` | Согласия на обработку ПД и родительские (002) | `kind`, `doc_version`, `granted_via`, `parent_name`, `telegram_user_id` (след после удаления студента), `revoked_at` |
+| `consents` | Согласия на обработку ПД и родительские (002, 005) | `kind`, `doc_version`, `granted_via` (`telegram` / `paper` / `college_list`), `parent_name`, `document_ref` — где бумага, `telegram_user_id` (след после удаления студента), `revoked_at` |
+| `parental_consent_list` | Список колледжа: у кого из группы есть согласие родителя (005) | `group_id`, `full_name` + `full_name_key`, `birth_year`, `parent_name`, `document_ref`, `matched_user_id` |
 | `ai_messages` | Журнал AI-тьютора (002) | `question`, `answer`, `material_ref`, `status`, токены и `cost_usd`, `review_verdict` преподавателя, `language` (003) |
 
 ## 3. Основные сценарии
@@ -78,7 +80,7 @@ erDiagram
 3. По `telegram_user_id` находим или создаём `users`.
 4. `start_param` = `token`: в одной транзакции добавляем `group_members` (с `invite_token`) и увеличиваем `invites.uses`, если ссылка не отозвана, не истекла и не исчерпан `max_uses`. Подробно — в шапке `004_group_invites.sql`.
    Студент уже в группе → приглашение не расходуется, приложение просто открывается.
-5. Первый вход: ФИО, год рождения, согласие (`consents`). **Младше 18** без родительского согласия к урокам с сохранением прогресса не пускаем — только демо без сохранения, пока преподаватель не внесёт согласие родителя (решение 13.10.2026).
+5. Первый вход: ФИО, год рождения, согласие (`consents`). **Младше 18** без родительского согласия к урокам с сохранением прогресса не пускаем — только демо без сохранения. Согласие родителя — от колледжа: бумага (преподаватель отмечает в кабинете) или список колледжа, с которым `api/` сверяет студента при входе (005, `docs/decisions.md`).
 
 Персональные одноразовые приглашения (`max_uses = 1`, `full_name`) остаются — например, вход преподавателя от колледжа.
 
@@ -128,7 +130,7 @@ erDiagram
 
 ## 6. Миграции
 
-- Имя: `NNN_кратко.sql` — следующая свободная: `005_teacher_indexes.sql`.
+- Имя: `NNN_кратко.sql` — следующая свободная: `006_teacher_indexes.sql`.
 - **Применённую миграцию не меняем** — только новая сверху.
 - Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
   Позже можно перейти на Supabase CLI (`supabase db push`).
@@ -145,6 +147,7 @@ erDiagram
 | `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
 | `003_lesson_languages.sql` | Уроки на двух языках: `lessons.language`, таблица `lesson_translations`, `users.ui_language`, `attempts.language`, `ai_messages.language` | #21 | 13.10.2026 · `college-tutor` |
 | `004_group_invites.sql` | Ссылка на группу: `invites.max_uses` / `uses` / `revoked_at` / `created_by`, формат токена, `group_members.invite_token` | #35 | — |
+| `005_parental_consent.sql` | Согласие родителя от колледжа: `consents.granted_via = college_list`, `document_ref`, таблица `parental_consent_list` | — | — |
 
 `seed.sql` в `college-tutor` не применялся.
 
@@ -162,7 +165,8 @@ erDiagram
 
 - ~~**003** — уроки на двух языках~~ — сделано и применено (#21).
 - **004** — ссылка на группу (#5) — #35.
-- **005** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
+- **005** — согласие родителя (бумага + список колледжа).
+- **006** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
 - Учёт расходов на AI и дневной лимит — отдельная миграция не нужна: токены и стоимость пишутся в `ai_messages` (002), индекс `ai_messages_user_day` уже есть. Лимит считает `api/`.
 - Согласия и год рождения — сделаны в 002.
 - Срок хранения учебных данных и удаление по запросу — решить до пилота (поле `users.delete_after` уже есть, нужна процедура).
