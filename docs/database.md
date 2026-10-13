@@ -1,7 +1,7 @@
 # База данных (Supabase)
 
 Владелец зоны: @Ehai1911 · ревью: @svlab27-web
-Статус: черновик к задачам #1 и #3 · 12.10.2026
+Статус: миграции 001 и 002 применены в Supabase-проекте `college-tutor` · 13.10.2026
 
 ## Коротко
 
@@ -18,8 +18,9 @@
    - Region: **Central EU (Frankfurt)** или **South Asia (Mumbai)** — ближе к Казахстану
    - Пароль базы — сразу в менеджер паролей, в чат и в код не пишем
 2. Пригласить второго участника: Organization → Team → Invite.
-3. SQL Editor → выполнить по порядку:
-   - `supabase/migrations/001_init.sql`
+3. SQL Editor → выполнить по порядку все файлы из `supabase/migrations/` (см. раздел 6):
+   - `001_init.sql`
+   - `002_fio_consents_ai.sql`
    - (только dev) `supabase/seed.sql`
    - `NOTIFY pgrst, 'reload schema';` — иначе API Supabase не видит новые таблицы
 4. Project Settings → API:
@@ -45,6 +46,9 @@ erDiagram
     lessons ||--o{ hint_events : ""
     users ||--o{ help_requests : "нужна помощь"
     groups ||--o{ help_requests : ""
+    users ||--o{ consents : "согласия"
+    users ||--o{ ai_messages : "диалог с AI"
+    lessons ||--o{ ai_messages : ""
 ```
 
 | Таблица | Что хранит | Ключевые поля |
@@ -52,13 +56,15 @@ erDiagram
 | `subjects` | Предметы пилота | `id` = `python` / `math` |
 | `lessons` | Урок целиком из `content/*.json` | `subject_id`, `slug`, `version`, `content` (jsonb), `is_published`, `approved_by` |
 | `groups` | Учебные группы | `title`, `language` (`ru` / `kk`) |
-| `users` | Студенты и преподаватели | `telegram_user_id` (уникальный), `role`, настройки напоминаний |
+| `users` | Студенты и преподаватели | `telegram_user_id` (уникальный), `role`, `full_name` + `full_name_source`, `birth_year`, `delete_after`, настройки напоминаний |
 | `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher` |
-| `invites` | Одноразовые приглашения в группу | `token`, `group_id`, `role`, `expires_at`, `used_by` |
+| `invites` | Одноразовые приглашения в группу | `token`, `group_id`, `role`, `full_name` (персональное приглашение), `expires_at`, `used_by` |
 | `attempts` | Каждый ответ студента | `answer` (jsonb), `is_correct`, `hints_used`, `is_independent`, `request_id` |
 | `progress` | Где студент в уроке | `(user_id, lesson_id)`, `current_step`, `completed_steps`, `completed_at` |
 | `hint_events` | Каждая взятая подсказка | `level` 1–3, `source` = `script` / `ai` |
 | `help_requests` | Обращения «нужна помощь» | `text`, `status` = `new` / `resolved` |
+| `consents` | Согласия на обработку ПД и родительские (002) | `kind`, `doc_version`, `granted_via`, `parent_name`, `telegram_user_id` (след после удаления студента), `revoked_at` |
+| `ai_messages` | Журнал AI-тьютора (002) | `question`, `answer`, `material_ref`, `status`, токены и `cost_usd`, `review_verdict` преподавателя |
 
 ## 3. Основные сценарии
 
@@ -114,12 +120,23 @@ erDiagram
 
 ## 6. Миграции
 
-- Имя: `NNN_кратко.sql` — `002_teacher_indexes.sql`, `003_ai_usage.sql`.
+- Имя: `NNN_кратко.sql` — следующая свободная: `003_lesson_languages.sql`.
 - **Применённую миграцию не меняем** — только новая сверху.
 - Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
   Позже можно перейти на Supabase CLI (`supabase db push`).
 - В описании PR пишем, применена ли миграция и в каком окружении.
 - `seed.sql` — только для dev.
+
+### Журнал применения
+
+Новая строка — в том же PR, что и миграция; дату и окружение дописываем после применения.
+
+| Миграция | Что делает | PR | Применена |
+|---|---|---|---|
+| `001_init.sql` | 10 базовых таблиц, RLS, предметы `python` / `math` | — (каркас) | 13.10.2026 · `college-tutor` |
+| `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
+
+`seed.sql` в `college-tutor` не применялся.
 
 ## 7. Окружения и бэкапы
 
@@ -131,14 +148,16 @@ erDiagram
 
 ## 8. Следующие миграции (черновик)
 
-- **002** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
-- **003** — учёт AI: таблица `ai_usage` (кто, сколько токенов, стоимость) + дневной лимит на студента.
-- **004** — согласия: `users.consent_at`, `users.birth_year` — если в пилоте будут несовершеннолетние.
-- Срок хранения учебных данных и удаление по запросу — решить до пилота.
+- **003** — уроки на двух языках (#15): урок остаётся одной записью с общими `step_id`, тексты `ru` / `kk` — отдельно (таблица переводов или `content` по языкам). Тогда прогресс не зависит от языка интерфейса, а `unique (subject_id, slug, version)` не мешает казахской версии. Нужна до начала переводов.
+- **004** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
+- Учёт расходов на AI и дневной лимит — отдельная миграция не нужна: токены и стоимость пишутся в `ai_messages` (002), индекс `ai_messages_user_day` уже есть. Лимит считает `api/`.
+- Согласия и год рождения — сделаны в 002.
+- Срок хранения учебных данных и удаление по запросу — решить до пилота (поле `users.delete_after` уже есть, нужна процедура).
 
 ## Открытые вопросы
 
-- [ ] Чья учётка Supabase и регион (Frankfurt / Mumbai)?
-- [ ] Язык групп пилота: `ru`, `kk` или оба?
-- [ ] Возраст студентов → нужны ли согласия (миграция 004)?
-- [ ] AI-провайдер и лимит расходов на студента (миграция 003)?
+- [x] Чья учётка Supabase и регион — учётка Светы, Frankfurt (`eu-central-1`).
+- [x] Язык — оба: интерфейс и уроки на русском и казахском (решение 13.10.2026, #15). В базе — миграция 003.
+- [x] Возраст студентов — колледж с 15 лет, родительские согласия нужны (`consents.kind = 'parental'`, 002).
+- [x] ФИО — вводит сам студент при первом входе (`full_name_source = 'self'`).
+- [ ] AI-провайдер и дневной лимит расходов на студента (считается по `ai_messages`).
