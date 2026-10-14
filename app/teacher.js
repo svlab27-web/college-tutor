@@ -79,6 +79,46 @@ const T={ru:{
 }}[lang];
 function plural(n,f){n=Math.abs(n)%100;const n1=n%10;return n>10&&n<20?f[2]:n1>1&&n1<5?f[1]:n1===1?f[0]:f[2]}
 
+// Вкладка «Студенты»: список группы ведёт куратор (docs/decisions.md, «Вход студента — личная ссылка от куратора»)
+Object.assign(T,{ru:{
+  tabRoster:'Студенты',
+  groupsSub:'Создайте группу и внесите студентов — у каждого будет своя личная ссылка.',
+  demoLink:'Общая ссылка группы — только для демо-показа. Реальные студенты входят по личным ссылкам (вкладка «Студенты»).',toRoster:'Студенты и ссылки →',
+  rosterTitle:'Студенты группы',rosterSub:'Список ведёт куратор: вносит студентов, отмечает согласия родителей и выдаёт каждому личную ссылку. Студент свои данные не вводит и не меняет.',
+  uploadList:'Загрузить список',uploadListHint:'Excel или CSV: ФИО, дата рождения',listUploaded:f=>`Список «${f}» загружен. В демо показан пример группы.`,
+  rTotal:'студентов',rIn:'вошли',rMinor:'младше 18',rWait:'ждём согласие родителя',
+  rf:{all:'Все',wait:'Ждём согласие',out:'Не вошли',err:'Ошибки в данных'},
+  age:n=>`${n} ${plural(n,['год','года','лет'])}`,refN:n=>`личное дело № ${n}`,
+  consentOk:r=>`Согласие родителя · ${r}`,consentWait:'Ждём бланк родителя',demoOnly:'Демо: прогресс не сохраняется',
+  entered:a=>`Вход: ${a}`,linkFree:'Ссылка не использована',
+  markConsent:'Отметить согласие',edit:'Исправить',newLink:'Новая ссылка',sqr:'QR',errMsg:'Студент сообщил об ошибке в ФИО',
+  seqBtn:'QR по очереди — для пары',seqTitle:'Личные ссылки по очереди',seqSub:'Покажите на экране: студент сканирует свой QR. Следующий — кнопкой «Дальше».',seqEmpty:'Все студенты уже вошли.',prev:'← Назад',next:'Дальше →',seqOf:(a,b)=>`${a} из ${b}`,
+  sqrSub:'Личная ссылка — покажите только этому студенту. После входа она ни для кого больше не работает.',
+  reissued:'Старая ссылка отключена. Новая готова — скопируйте или покажите QR.',
+  cTitle:'Согласие родителя',cSub:n=>`Студент: ${n}. Родитель подписывает бланк в колледже — здесь только отметка.`,cParent:'ФИО родителя (законного представителя)',cRef:'Где лежит бланк',cRefPh:'Например, личное дело № 12',cCheck:'Бланк подписан родителем и хранится в колледже',cNote:'Сканы и фото бланка в сервис не загружаем.',save:'Сохранить',cSaved:'Согласие отмечено — прогресс студента теперь сохраняется.',cNeed:'Укажите, где лежит бланк, и подтвердите галочкой.',
+  eTitle:'Данные студента',eName:'ФИО',eBirth:'Дата рождения',eSaved:'Данные исправлены.',
+  addTitle:'Добавить студента',add:'Добавить',added:'Студент добавлен — личная ссылка готова.',noRoster:'В группе пока нет студентов — загрузите список или добавьте вручную.'
+},kk:{
+  tabRoster:'Студенттер',
+  groupsSub:'Топ құрып, студенттерді енгізіңіз — әрқайсысының жеке сілтемесі болады.',
+  demoLink:'Топтың ортақ сілтемесі — тек демо-көрсетілім үшін. Нақты студенттер жеке сілтемелер арқылы кіреді («Студенттер» қойындысы).',toRoster:'Студенттер мен сілтемелер →',
+  rosterTitle:'Топ студенттері',rosterSub:'Тізімді куратор жүргізеді: студенттерді енгізеді, ата-ана келісімдерін белгілейді және әрқайсысына жеке сілтеме береді. Студент өз деректерін енгізбейді және өзгертпейді.',
+  uploadList:'Тізімді жүктеу',uploadListHint:'Excel немесе CSV: аты-жөні, туған күні',listUploaded:f=>`«${f}» тізімі жүктелді. Демода топ мысалы көрсетілген.`,
+  rTotal:'студент',rIn:'кірді',rMinor:'18-ге толмаған',rWait:'ата-ана келісімі күтілуде',
+  rf:{all:'Барлығы',wait:'Келісім күтілуде',out:'Кірмегендер',err:'Деректердегі қателер'},
+  age:n=>`${n} жаста`,refN:n=>`жеке іс № ${n}`,
+  consentOk:r=>`Ата-ана келісімі · ${r}`,consentWait:'Ата-ана бланкі күтілуде',demoOnly:'Демо: прогресс сақталмайды',
+  entered:a=>`Кірді: ${a}`,linkFree:'Сілтеме пайдаланылмаған',
+  markConsent:'Келісімді белгілеу',edit:'Түзету',newLink:'Жаңа сілтеме',sqr:'QR',errMsg:'Студент аты-жөніндегі қате туралы хабарлады',
+  seqBtn:'QR кезекпен — сабақта',seqTitle:'Жеке сілтемелер кезекпен',seqSub:'Экранда көрсетіңіз: студент өз QR-ын сканерлейді. Келесісі — «Әрі қарай» батырмасымен.',seqEmpty:'Барлық студент кірді.',prev:'← Артқа',next:'Әрі қарай →',seqOf:(a,b)=>`${a} / ${b}`,
+  sqrSub:'Жеке сілтеме — тек осы студентке көрсетіңіз. Кіргеннен кейін ол басқа ешкімге жұмыс істемейді.',
+  reissued:'Ескі сілтеме өшірілді. Жаңасы дайын — көшіріңіз немесе QR көрсетіңіз.',
+  cTitle:'Ата-ана келісімі',cSub:n=>`Студент: ${n}. Ата-ана бланкке колледжде қол қояды — мұнда тек белгі.`,cParent:'Ата-ананың (заңды өкілдің) аты-жөні',cRef:'Бланк қайда сақталады',cRefPh:'Мысалы, жеке іс № 12',cCheck:'Бланкке ата-ана қол қойды және ол колледжде сақталады',cNote:'Бланктің сканы мен фотосын сервиске жүктемейміз.',save:'Сақтау',cSaved:'Келісім белгіленді — студенттің прогресі енді сақталады.',cNeed:'Бланк қайда екенін көрсетіп, белгімен растаңыз.',
+  eTitle:'Студент деректері',eName:'Аты-жөні',eBirth:'Туған күні',eSaved:'Деректер түзетілді.',
+  addTitle:'Студент қосу',add:'Қосу',added:'Студент қосылды — жеке сілтеме дайын.',noRoster:'Топта әзірге студент жоқ — тізімді жүктеңіз немесе қолмен қосыңыз.'
+}}[lang]);
+T.tabs=Object.assign({groups:T.tabs.groups,roster:T.tabRoster},T.tabs);
+
 // ── Демо-данные ─────────────────────────────────────────────
 const SKILLS={
   python:{ru:['Как работает условие','Граница сравнения','Проверка программы','Новая задача'],kk:['Шарт қалай жұмыс істейді','Салыстыру шекарасы','Бағдарламаны тексеру','Жаңа есеп']},
@@ -126,7 +166,8 @@ if(!S||!S.groups)S=JSON.parse(JSON.stringify(DEFAULT));
 const save=()=>{try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}};
 const cache={};const studentsOf=g=>cache[g.id]||(cache[g.id]=makeStudents(g.n,g.seed||7,g.subject));
 const topicName=(subj,i)=>PLAN[subj]?PLAN[subj][lang][i]:'';
-const fmtDate=s=>new Date(s).toLocaleDateString(lang==='kk'?'kk-KZ':'ru-RU',{day:'numeric',month:'long'});
+// Казахских названий месяцев в браузерах нет («M10 24»), поэтому на казахском — цифрами: «24.10»
+const fmtDate=s=>{const d=new Date(s);return lang==='kk'?String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0'):d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})};
 const linkOf=g=>`https://t.me/${BOT}?startapp=g_${g.code}`;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -151,13 +192,13 @@ function renderTabs(){const open=S.help.filter(h=>!h.done).length;
   document.getElementById('tabs').innerHTML=Object.entries(T.tabs).map(([k,v])=>`<button type="button" data-tab="${k}" class="${k===tab?'active':''}">${v}${k==='help'&&open?`<span class="count">${open}</span>`:''}</button>`).join('')}
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){tab=b.dataset.tab;render();window.scrollTo({top:0})}});
 function groupSelect(){return `<select class="i" id="grp" aria-label="${T.group}">${S.groups.map(g=>`<option value="${g.id}" ${g.id===cur?'selected':''}>${esc(g.name)} · ${T.subjects[g.subject]}</option>`).join('')}</select>`}
-function render(){renderTabs();document.getElementById('view').innerHTML=({groups,progress,plan,tasks,help})[tab]()+`<p class="note">${T.demoNote}</p>`}
+function render(){renderTabs();document.getElementById('view').innerHTML=({groups,roster,progress,plan,tasks,help})[tab]()+`<p class="note">${T.demoNote}</p>`}
 
 // ── Экраны ──────────────────────────────────────────────────
 function groups(){const till=g=>fmtDate(g.created+g.days*864e5);
   return `<h1>${T.groupsTitle}</h1><p class="sub">${T.groupsSub}</p>
-  ${S.groups.map(g=>`<div class="card"><div class="row"><div class="grow"><b style="font-size:17px">${esc(g.name)}</b> <span class="tag t-violet">${T.subjects[g.subject]}</span><div class="muted">${T.students(g.n)} · ${T.linkTill(till(g))}</div></div><button class="btn secondary" data-act="open" data-g="${g.id}">${T.open}</button></div>
-    <div class="link">${linkOf(g)}</div>
+  ${S.groups.map(g=>`<div class="card"><div class="row"><div class="grow"><b style="font-size:17px">${esc(g.name)}</b> <span class="tag t-violet">${T.subjects[g.subject]}</span><div class="muted">${T.students(g.n)} · ${T.linkTill(till(g))}</div></div><button class="btn secondary" data-act="toRoster" data-g="${g.id}">${T.toRoster}</button></div>
+    <div class="muted" style="margin-top:10px">${T.demoLink}</div><div class="link">${linkOf(g)}</div>
     <div class="row"><button class="btn primary" data-act="share" data-g="${g.id}">${T.share}</button><button class="btn secondary" data-act="copy" data-g="${g.id}">${T.copy}</button><button class="btn secondary" data-act="qr" data-g="${g.id}">${T.qr}</button></div></div>`).join('')}
   <div class="card"><b>${T.newGroup}</b><div class="form">
     <div><label class="f" for="g-name">${T.gName}</label><input class="i" id="g-name" placeholder="${T.gNamePh}" maxlength="24"></div>
@@ -209,9 +250,57 @@ function help(){const open=S.help.filter(h=>!h.done),done=S.help.filter(h=>h.don
     return `<div class="card" style="${h.done?'opacity:.6':''}"><div class="row"><div class="grow"><b>${esc(h.student)}</b> <span class="muted">· ${esc(gr.name)} · ${T.ago(h.h)}</span><div class="muted">${esc(topicName(gr.subject,h.topic))} · ${esc(sk[h.step])}</div></div>${h.done?`<span class="tag t-ok">${T.resolved}</span>`:''}</div><p style="margin:10px 0">«${esc(h.text[lang])}»</p>${h.done?'':`<div class="row"><button class="btn primary" data-act="reply">${T.reply}</button><button class="btn secondary" data-act="resolve" data-h="${h.id}">${T.resolve}</button></div>`}</div>`};
   return `<h1>${T.helpTitle}</h1><p class="sub">${T.helpSub}</p>${open.length?open.map(card).join(''):`<div class="card muted">${T.noHelp}</div>`}${done.map(card).join('')}`}
 
+
+// ── Студенты группы (вносит куратор) ───────────────────────
+const SUR={'А.':'Абенов','Б.':'Бекмуратов','В.':'Васильев','Ж.':'Жумабаев','Е.':'Ермеков','К.':'Калиев','М.':'Мусин','Н.':'Нургалиев','О.':'Омаров','С.':'Сейткалиев','Т.':'Тулегенов','Ш.':'Шаймерденов'};
+const FEM=new Set(['Айгерим','Алия','Мадина','Дана','Камила','Аружан','Жанель','Асель','Диана','Томирис','Сабина','Карина','Виктория']);
+const CH='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+function newCode(r){r=r||Math.random;let c='';for(let k=0;k<16;k++)c+=CH[Math.floor(r()*CH.length)];return c}
+const isoDate=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function rosterOf(g){S.roster=S.roster||{};if(S.roster[g.id])return S.roster[g.id];
+  const r=rng((g.seed||7)*31+5);
+  const list=studentsOf(g).map((st,i)=>{const [first,ini]=st.name.split(' ');const sur=(SUR[ini]||'Ахметов')+(FEM.has(first)?'а':'');
+    const age=[15,16,16,17,17,17,18,18,19][Math.floor(r()*9)];const b=new Date();b.setFullYear(b.getFullYear()-age);b.setDate(b.getDate()-1-Math.floor(r()*360));
+    return {id:g.id+'-'+i,name:sur+' '+first,birth:isoDate(b),consent:age<18&&r()<.7?{n:10+i}:null,code:newCode(r),used:i%6===3?null:st.last,err:i===4}});
+  return S.roster[g.id]=list}
+const ageOf=b=>{const d=new Date(b),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return a};
+const fmtBirth=b=>b.split('-').reverse().join('.');
+const personalLink=s=>`https://t.me/${BOT}?startapp=i_${s.code}`;
+let rf='all',seq=0;
+function roster(){const g=S.groups.find(x=>x.id===cur)||S.groups[0];if(!g)return '';const R=rosterOf(g);
+  const minor=s=>ageOf(s.birth)<18,wait=R.filter(s=>minor(s)&&!s.consent),inn=R.filter(s=>s.used!==null),errs=R.filter(s=>s.err);
+  const shown=R.filter(s=>rf==='wait'?minor(s)&&!s.consent:rf==='out'?s.used===null:rf==='err'?s.err:true);
+  const ref=c=>c.ref?esc(c.ref):T.refN(c.n);
+  const row=s=>`<div class="topic" style="align-items:flex-start"><span class="num">${R.indexOf(s)+1}</span><div class="grow"><b>${esc(s.name)}</b><div class="muted">${T.age(ageOf(s.birth))} · ${fmtBirth(s.birth)}</div>
+    <div class="row" style="gap:6px;margin-top:6px">${minor(s)?(s.consent?`<span class="tag t-ok">${T.consentOk(ref(s.consent))}</span>`:`<span class="tag t-draft">${T.consentWait}</span>`):`<span class="tag t-none">18+</span>`}
+    ${s.used!==null?`<span class="tag t-ok">${T.entered(T.ago(s.used))}</span>`:`<span class="tag t-violet">${T.linkFree}</span>`}
+    ${minor(s)&&!s.consent&&s.used!==null?`<span class="tag t-draft">${T.demoOnly}</span>`:''}${s.err?`<span class="tag t-draft">⚠ ${T.errMsg}</span>`:''}</div>
+    <div class="row" style="gap:6px;margin-top:8px">${minor(s)&&!s.consent?`<button class="btn primary" data-act="consent" data-s="${s.id}">${T.markConsent}</button>`:''}
+    ${s.used===null?`<button class="btn secondary" data-act="scopy" data-s="${s.id}">${T.copy}</button><button class="btn secondary" data-act="sqr" data-s="${s.id}">${T.sqr}</button>`:''}
+    <button class="btn ${s.err?'secondary':'plain'}" data-act="edit" data-s="${s.id}">${T.edit}</button><button class="btn plain" data-act="reissue" data-s="${s.id}">${T.newLink}</button></div></div></div>`;
+  return `<h1>${T.rosterTitle}</h1><p class="sub">${T.rosterSub}</p>
+  <div class="card"><div class="row"><div class="grow">${groupSelect()}</div><label class="btn primary" style="cursor:pointer">${T.uploadList}<input type="file" id="roster-file" accept=".xls,.xlsx,.csv" hidden></label></div><div class="muted" style="margin-top:6px">${T.uploadListHint}</div></div>
+  ${R.length?`<div class="tiles"><div class="tile"><b>${R.length}</b><span>${T.rTotal}</span></div><div class="tile"><b>${inn.length}</b><span>${T.rIn}</span></div><div class="tile"><b>${R.filter(minor).length}</b><span>${T.rMinor}</span></div><div class="tile ${wait.length?'alert':''}"><b>${wait.length}</b><span>${T.rWait}</span></div></div>
+  <nav style="margin:14px 0 4px;padding:0;flex-wrap:wrap">${Object.entries(T.rf).map(([k,v])=>`<button type="button" data-act="rf" data-f="${k}" class="${rf===k?'active':''}">${v}${k==='wait'&&wait.length?`<span class="count">${wait.length}</span>`:k==='err'&&errs.length?`<span class="count">${errs.length}</span>`:''}</button>`).join('')}</nav>
+  <div class="card"><div class="row"><b class="grow">${T.tableTitle}</b><button class="btn lime" data-act="qrseq">${T.seqBtn}</button></div>${shown.map(row).join('')||`<div class="muted" style="padding:12px 0">—</div>`}</div>`:`<div class="card muted">${T.noRoster}</div>`}
+  <div class="card"><b>${T.addTitle}</b><div class="form" style="grid-template-columns:2fr 1.2fr auto">
+    <div><label class="f" for="s-name">${T.eName}</label><input class="i" id="s-name" maxlength="80"></div>
+    <div><label class="f" for="s-birth">${T.eBirth}</label><input class="i" type="date" id="s-birth"></div>
+    <button class="btn lime" data-act="sadd">${T.add}</button></div></div>`}
+const curRoster=()=>rosterOf(S.groups.find(x=>x.id===cur)||S.groups[0]);
+const findS=id=>curRoster().find(x=>x.id===id);
+function qrInto(box,text){if(window.QRCode)new QRCode(box,{text,width:200,height:200,colorDark:'#182c29',colorLight:'#ffffff'});else box.textContent=text}
+function copyText(l){(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>toast(T.copied)).catch(()=>{const ta=document.createElement('textarea');ta.value=l;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast(T.copied)}catch(err){}ta.remove()})}
+function showSeq(){const list=curRoster().filter(s=>s.used===null);
+  if(!list.length){modal(`<h2>${T.seqTitle}</h2><p class="muted">${T.seqEmpty}</p><div class="row"><button class="btn primary" data-close>${T.close}</button></div>`);return}
+  seq=(seq+list.length)%list.length;const s=list[seq];
+  const m=modal(`<h2>${T.seqTitle}</h2><p class="muted">${T.seqSub}</p><div style="text-align:center"><b style="font-size:20px">${esc(s.name)}</b><div class="muted">${T.seqOf(seq+1,list.length)}</div></div><div class="qr" id="qr-box"></div><div class="row" style="justify-content:space-between"><button class="btn secondary" data-act="seqPrev">${T.prev}</button><button class="btn plain" data-close>${T.close}</button><button class="btn primary" data-act="seqNext">${T.next}</button></div>`);
+  qrInto(m.querySelector('#qr-box'),personalLink(s))}
+
 // ── Действия ────────────────────────────────────────────────
 document.getElementById('view').addEventListener('change',e=>{
   if(e.target.id==='grp'){cur=e.target.value;render()}
+  if(e.target.id==='roster-file'&&e.target.files[0])toast(T.listUploaded(e.target.files[0].name));
   if(e.target.id==='ktp'&&e.target.files[0]){S.uploaded=e.target.files[0].name;save();render();toast(T.uploaded(S.uploaded,8))}
 });
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,g=S.groups.find(x=>x.id===b.dataset.g);
@@ -234,6 +323,28 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
   if(a==='gen'){const s=b.dataset.s,i=+b.dataset.i;S.plan[s][i]='gen';render();setTimeout(()=>{S.plan[s][i]='draft';save();if(tab==='plan')render();toast(T.genDone)},1600)}
   if(a==='approve'){S.plan[b.dataset.s][+b.dataset.i]='approved';save();closeModal();render();toast(T.approvedMsg)}
   if(a==='rework'){closeModal();toast(T.reworkMsg)}
+  if(a==='toRoster'){cur=g.id;tab='roster';rf='all';render();window.scrollTo({top:0})}
+  if(a==='rf'){rf=b.dataset.f;render()}
+  if(a==='scopy'){const s=findS(b.dataset.s);if(s)copyText(personalLink(s))}
+  if(a==='sqr'){const s=findS(b.dataset.s);if(!s)return;const m=modal(`<h2>${esc(s.name)}</h2><p class="muted">${T.sqrSub}</p><div class="qr" id="qr-box"></div><div class="link">${personalLink(s)}</div><div class="row"><button class="btn primary" data-close>${T.close}</button></div>`);qrInto(m.querySelector('#qr-box'),personalLink(s))}
+  if(a==='qrseq'){seq=0;showSeq()}
+  if(a==='seqNext'){seq++;showSeq()}
+  if(a==='seqPrev'){seq--;showSeq()}
+  if(a==='reissue'){const s=findS(b.dataset.s);if(!s)return;s.code=newCode();s.used=null;save();render();toast(T.reissued)}
+  if(a==='consent'){const s=findS(b.dataset.s);if(!s)return;modal(`<h2>${T.cTitle}</h2><p class="muted">${esc(T.cSub(s.name))}</p>
+    <label class="f" for="c-parent">${T.cParent}</label><input class="i" id="c-parent" maxlength="80">
+    <label class="f" for="c-ref">${T.cRef}</label><input class="i" id="c-ref" maxlength="60" placeholder="${T.cRefPh}">
+    <label class="row" style="margin:12px 0;font-size:13px;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="c-ok" style="margin-top:3px"> <span>${T.cCheck}</span></label>
+    <p class="muted">${T.cNote}</p><div class="row"><button class="btn primary" data-act="consentSave" data-s="${s.id}">${T.save}</button><button class="btn plain" data-close>${T.close}</button></div>`)}
+  if(a==='consentSave'){const s=findS(b.dataset.s);const ref=document.getElementById('c-ref').value.trim();if(!s)return;if(!ref||!document.getElementById('c-ok').checked){toast(T.cNeed);return}
+    s.consent={ref,parent:document.getElementById('c-parent').value.trim()};save();closeModal();render();toast(T.cSaved)}
+  if(a==='edit'){const s=findS(b.dataset.s);if(!s)return;modal(`<h2>${T.eTitle}</h2>${s.err?`<p class="muted">⚠ ${T.errMsg}</p>`:''}
+    <label class="f" for="e-name">${T.eName}</label><input class="i" id="e-name" maxlength="80" value="${esc(s.name)}">
+    <label class="f" for="e-birth">${T.eBirth}</label><input class="i" type="date" id="e-birth" value="${s.birth}">
+    <div class="row" style="margin-top:14px"><button class="btn primary" data-act="editSave" data-s="${s.id}">${T.save}</button><button class="btn plain" data-close>${T.close}</button></div>`)}
+  if(a==='editSave'){const s=findS(b.dataset.s);const n=document.getElementById('e-name').value.trim(),bd=document.getElementById('e-birth').value;if(!s||!n||!bd)return;s.name=n;s.birth=bd;s.err=false;save();closeModal();render();toast(T.eSaved)}
+  if(a==='sadd'){const n=document.getElementById('s-name'),bd=document.getElementById('s-birth');if(!n.value.trim()){n.focus();return}if(!bd.value){bd.focus();return}
+    const gr=S.groups.find(x=>x.id===cur)||S.groups[0];const R=rosterOf(gr);R.push({id:gr.id+'-n'+Date.now(),name:n.value.trim(),birth:bd.value,consent:null,code:newCode(),used:null,err:false});gr.n=Math.max(gr.n,R.length);save();render();toast(T.added)}
   if(a==='assign'){const gr=S.groups.find(x=>x.id===cur);const sel=document.getElementById('t-topic');if(!sel)return;S.tasks.unshift({group:gr.id,topic:+sel.value,subject:gr.subject,deadline:document.getElementById('t-date').value||addDays(7),done:0});save();render();toast(T.assigned)}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
