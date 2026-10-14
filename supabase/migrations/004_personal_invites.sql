@@ -5,7 +5,7 @@
 -- куратор, а не сам студент — иначе можно ввести ФИО однокурсника или чужой год рождения.
 --
 --   1. Куратор один раз вносит группу (лучше списком колледжа): users без telegram_user_id
---      (ФИО с full_name_source = 'roster', год рождения) + group_members.
+--      (ФИО с full_name_source = 'roster', дата рождения или хотя бы год) + group_members.
 --   2. На каждого студента — личная одноразовая ссылка: invites.user_id = этот студент.
 --      Общей ссылки группы для реальных студентов нет.
 --   3. Студент открывает t.me/tutornvl_bot?startapp=<token>: api/ в одной транзакции
@@ -36,3 +36,11 @@ create index invites_group on invites (group_id, created_at desc);
 -- По какой ссылке студент вошёл — для кабинета («кто уже вошёл») и проверки утечек
 alter table group_members
   add column invite_token text references invites(token) on delete set null;
+
+-- Дата рождения (решение 14.10.2026): если колледж её даёт, 18 лет считаем по ней —
+-- требование согласия родителя снимается в день рождения. Нет даты — считаем по году
+-- (год, в котором исполняется 18, — ещё несовершеннолетний). Год и дата не расходятся.
+alter table users
+  add column birth_date date check (birth_date between date '1950-01-01' and date '2020-12-31'),
+  add constraint users_birth_date_year
+    check (birth_date is null or (birth_year is not null and birth_year = extract(year from birth_date)));
