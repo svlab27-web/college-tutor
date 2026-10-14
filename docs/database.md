@@ -59,7 +59,7 @@ erDiagram
 | `lessons` | Урок целиком из `content/*.json` на основном языке | `subject_id`, `slug`, `version`, `language` (003, по умолчанию `ru`), `content` (jsonb), `is_published`, `approved_by` |
 | `lesson_translations` | Урок на другом языке — из `*.kk.json` (003) | `(lesson_id, language)`, `content` (jsonb), `status` = `draft` / `review` / `approved`, `approved_by` |
 | `groups` | Учебные группы | `title`, `language` (`ru` / `kk`) |
-| `users` | Студенты и преподаватели; куратор создаёт заранее, Telegram привязывается при первом входе (004) | `telegram_user_id` (уникальный, пусто до первого входа), `role`, `full_name` + `full_name_source`, `birth_year`, `delete_after`, `ui_language` (003), настройки напоминаний |
+| `users` | Студенты и преподаватели; куратор создаёт заранее, Telegram привязывается при первом входе (004) | `telegram_user_id` (уникальный, пусто до первого входа), `role`, `full_name` + `full_name_source`, `birth_date` (004, если колледж даёт) / `birth_year`, `delete_after`, `ui_language` (003), настройки напоминаний |
 | `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher`, `invite_token` — по какой ссылке вступил (004) |
 | `invites` | Личная одноразовая ссылка студента или преподавателя (004) | `token` = `start_param`, `user_id` — чья ссылка, `group_id`, `role`, `expires_at`, `revoked_at`, `created_by`, `used_by` / `used_at` |
 | `attempts` | Каждый ответ студента | `answer` (jsonb), `is_correct`, `hints_used`, `is_independent`, `request_id`, `language` (003) |
@@ -144,7 +144,7 @@ Telegram без личной ссылки → демо, в базу ничего
 | `001_init.sql` | 10 базовых таблиц, RLS, предметы `python` / `math` | — (каркас) | 13.10.2026 · `college-tutor` |
 | `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
 | `003_lesson_languages.sql` | Уроки на двух языках: `lessons.language`, таблица `lesson_translations`, `users.ui_language`, `attempts.language`, `ai_messages.language` | #21 | 13.10.2026 · `college-tutor` |
-| `004_personal_invites.sql` | Личная одноразовая ссылка: `invites.user_id` / `revoked_at` / `created_by`, формат токена, одна действующая ссылка на студента, `group_members.invite_token` | #35 | — |
+| `004_personal_invites.sql` | Личная одноразовая ссылка: `invites.user_id` / `revoked_at` / `created_by`, формат токена, одна действующая ссылка на студента, `group_members.invite_token`, `users.birth_date` | #35 | — |
 | `005_parental_consent.sql` | Согласие родителя отмечает куратор: `consents.document_ref`, способ `college_list`, согласие родителя без Telegram студента | #36 | — |
 
 `seed.sql` в `college-tutor` не применялся.
