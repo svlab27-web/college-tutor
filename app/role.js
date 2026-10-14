@@ -13,7 +13,7 @@
   if(q.has('choose'))set(null);
   // Явный вход по ссылке важнее сохранённого выбора
   if(sp==='teacher'||q.get('role')==='teacher'){set('teacher');toTeacher();return}
-  if(sp==='student'||sp.indexOf('g_')===0||q.get('role')==='student'){set('student');return}
+  if(sp==='student'||sp.indexOf('g_')===0||sp.indexOf('i_')===0||q.get('role')==='student'){set('student');return}
   const saved=get();
   if(saved==='teacher'){toTeacher();return}
   if(saved==='student')return;
