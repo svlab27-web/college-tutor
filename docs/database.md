@@ -1,7 +1,7 @@
 # База данных (Supabase)
 
 Владелец зоны: @Ehai1911 · ревью: @svlab27-web
-Статус: миграции 001, 002 и 003 применены в Supabase-проекте `college-tutor` · 13.10.2026
+Статус: миграции 001–005 применены в Supabase-проекте `college-tutor` · 14.10.2026
 
 ## Коротко
 
@@ -66,7 +66,7 @@ erDiagram
 | `progress` | Где студент в уроке | `(user_id, lesson_id)`, `current_step`, `completed_steps`, `completed_at` |
 | `hint_events` | Каждая взятая подсказка | `level` 1–3, `source` = `script` / `ai` |
 | `help_requests` | Обращения «нужна помощь» | `text`, `status` = `new` / `resolved` |
-| `consents` | Согласия на обработку ПД и родительские (002) | `kind`, `doc_version`, `granted_via`, `parent_name`, `telegram_user_id` (след после удаления студента), `revoked_at` |
+| `consents` | Согласия на обработку ПД и родительские (002, 005) | `kind`, `doc_version`, `granted_via` (`telegram` — сам студент; `paper` / `college_list` — согласие родителя, отмечает куратор), `parent_name`, `document_ref` — где бумага, `telegram_user_id` (след после удаления студента; у согласия родителя может быть пусто), `revoked_at` |
 | `ai_messages` | Журнал AI-тьютора (002) | `question`, `answer`, `material_ref`, `status`, токены и `cost_usd`, `review_verdict` преподавателя, `language` (003) |
 
 ## 3. Основные сценарии
@@ -128,7 +128,7 @@ Telegram без личной ссылки → демо, в базу ничего
 
 ## 6. Миграции
 
-- Имя: `NNN_кратко.sql` — следующая свободная: `005_teacher_indexes.sql`.
+- Имя: `NNN_кратко.sql` — следующая свободная: `006_teacher_indexes.sql`.
 - **Применённую миграцию не меняем** — только новая сверху.
 - Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
   Позже можно перейти на Supabase CLI (`supabase db push`).
@@ -145,6 +145,7 @@ Telegram без личной ссылки → демо, в базу ничего
 | `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
 | `003_lesson_languages.sql` | Уроки на двух языках: `lessons.language`, таблица `lesson_translations`, `users.ui_language`, `attempts.language`, `ai_messages.language` | #21 | 13.10.2026 · `college-tutor` |
 | `004_personal_invites.sql` | Личная одноразовая ссылка: `invites.user_id` / `revoked_at` / `created_by`, формат токена, одна действующая ссылка на студента, `group_members.invite_token`, `users.birth_date`; ссылка преподавателя — только со сроком; `invites.full_name` удалён | #35 | 14.10.2026 · `college-tutor` |
+| `005_parental_consent.sql` | Согласие родителя отмечает куратор: `consents.document_ref`, `recorded_by` обязателен (куратора не удалить), способ `college_list`, без Telegram студента; при удалении студента отметки о согласии родителя удаляются; одно действующее согласие студента на версию текста | #36 | 14.10.2026 · `college-tutor` |
 
 `seed.sql` в `college-tutor` не применялся.
 
@@ -162,7 +163,8 @@ Telegram без личной ссылки → демо, в базу ничего
 
 - ~~**003** — уроки на двух языках~~ — сделано и применено (#21).
 - **004** — личная ссылка студента (#5) — #35.
-- **005** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
+- **005** — согласие родителя отмечает куратор — #36.
+- **006** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
 - Учёт расходов на AI и дневной лимит — отдельная миграция не нужна: токены и стоимость пишутся в `ai_messages` (002), индекс `ai_messages_user_day` уже есть. Лимит считает `api/`.
 - Согласия и год рождения — сделаны в 002.
 - Срок хранения учебных данных и удаление по запросу — решить до пилота (поле `users.delete_after` уже есть, нужна процедура).
