@@ -2,6 +2,7 @@
 // telegram_user_id (bigint) наружу не отдаём и не читаем: postgres.js вернул бы строку.
 
 import type postgres from 'postgres';
+import { HttpError } from './http';
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
@@ -21,17 +22,19 @@ export interface GroupRow {
   role: 'student' | 'teacher';
 }
 
-export async function upsertUser(sql: Sql, telegramUserId: number): Promise<UserRow> {
-  const [user] = await sql<UserRow[]>`
-    insert into users (telegram_user_id) values (${telegramUserId})
-    on conflict (telegram_user_id) do update set telegram_user_id = excluded.telegram_user_id
-    returning id, role, full_name, full_name_source, birth_year, ui_language`;
-  return user;
-}
-
+// Студентов заводит куратор (004): по Telegram находим только тех, кто вошёл по личной ссылке.
+// Незнакомый Telegram в базу не пишем — он работает в демо.
 export async function findUser(sql: Sql, telegramUserId: number): Promise<UserRow | undefined> {
   const [user] = await sql<UserRow[]>`
     select id, role, full_name, full_name_source, birth_year, ui_language from users where telegram_user_id = ${telegramUserId}`;
+  return user;
+}
+
+export async function requireUser(sql: Sql, telegramUserId: number): Promise<UserRow> {
+  const user = await findUser(sql, telegramUserId);
+  if (!user) {
+    throw new HttpError(403, 'not_registered', 'Откройте личную ссылку от куратора — тогда прогресс будет сохраняться.');
+  }
   return user;
 }
 

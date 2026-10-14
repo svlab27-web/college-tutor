@@ -1,11 +1,12 @@
 // POST /api/consent — студент сам даёт согласие на обработку ПД (kind = personal_data).
-// Согласие родителя вносит преподаватель (granted_via = paper / teacher) — это API кабинета (#9).
+// Согласие родителя отмечает куратор (granted_via = paper / college_list, 005) — это API кабинета (#9).
+// Без личной ссылки (студент не заведён куратором) — 403, в демо согласие не пишем.
 
 import { db } from '../db';
 import { HttpError, json } from '../http';
 import { CONSENT_DOC_VERSION } from '../profile';
 import { readJson, requireIdentity } from '../session';
-import { upsertUser } from '../users';
+import { requireUser } from '../users';
 
 export async function postConsent(req: Request): Promise<Response> {
   const identity = requireIdentity(req);
@@ -17,7 +18,7 @@ export async function postConsent(req: Request): Promise<Response> {
   }
 
   const sql = db();
-  const user = await upsertUser(sql, identity.telegramUserId);
+  const user = await requireUser(sql, identity.telegramUserId);
   await sql`
     insert into consents (user_id, telegram_user_id, kind, doc_version, granted_via)
     select ${user.id}::uuid, ${identity.telegramUserId}::bigint, 'personal_data', ${CONSENT_DOC_VERSION}::text, 'telegram'

@@ -1,10 +1,17 @@
-// Вступление в группу по ссылке (миграция 004, порядок — в её шапке).
-// Одна транзакция: студент уже в группе → ссылка не расходуется;
-// ссылка истекла / отозвана / мест нет → ничего не меняем.
+// Вход по личной ссылке (миграция 004, решение 14.10.2026).
+// Студента заранее заводит куратор (ФИО, год, группа). Ссылка одноразовая и принадлежит
+// одному студенту: при первом входе привязываем к нему Telegram — одна транзакция.
 
 import type postgres from 'postgres';
 
-export type JoinStatus = 'joined' | 'already_member' | 'invalid' | 'expired' | 'revoked' | 'full';
+export type JoinStatus =
+  | 'joined' // ссылка привязана к этому Telegram
+  | 'already_yours' // своя ссылка, открыта повторно
+  | 'used' // ссылкой уже вошёл другой Telegram
+  | 'already_registered' // этот Telegram уже привязан к другому студенту
+  | 'invalid'
+  | 'expired'
+  | 'revoked';
 
 export interface JoinResult {
   status: JoinStatus;
@@ -19,14 +26,14 @@ export function isInviteToken(value: string | undefined): value is string {
 }
 
 interface InviteRow {
+  user_id: string;
   group_id: string;
   group_title: string;
   role: 'student' | 'teacher';
-  full_name: string | null;
-  max_uses: number | null;
-  uses: number;
+  used: boolean;
   expired: boolean;
   revoked: boolean;
+  user_has_telegram: boolean;
 }
 
 class Rejected extends Error {
@@ -35,46 +42,44 @@ class Rejected extends Error {
   }
 }
 
-export async function joinByInvite(sql: postgres.Sql, userId: string, token: string): Promise<JoinResult> {
+export async function bindInvite(sql: postgres.Sql, telegramUserId: number, token: string): Promise<JoinResult> {
   try {
     return await sql.begin(async (tx) => {
       const [invite] = await tx<InviteRow[]>`
-        select i.group_id, g.title as group_title, i.role, i.full_name, i.max_uses, i.uses,
+        select i.user_id, i.group_id, g.title as group_title, i.role,
+               (i.used_at is not null) as used,
                (i.expires_at is not null and i.expires_at <= now()) as expired,
-               (i.revoked_at is not null) as revoked
-          from invites i join groups g on g.id = i.group_id
+               (i.revoked_at is not null) as revoked,
+               (u.telegram_user_id is not null) as user_has_telegram
+          from invites i
+          join groups g on g.id = i.group_id
+          join users u on u.id = i.user_id
          where i.token = ${token}
-         for update of i`;
+         for update of i, u`;
       if (!invite) throw new Rejected('invalid');
       const group = { id: invite.group_id, title: invite.group_title };
 
-      const inserted = await tx`
-        insert into group_members (group_id, user_id, role, invite_token)
-        values (${invite.group_id}, ${userId}, ${invite.role}, ${token})
-        on conflict (group_id, user_id) do nothing
-        returning 1`;
-      if (inserted.length === 0) return { status: 'already_member', group } as JoinResult;
+      const [current] = await tx<{ id: string }[]>`
+        select id from users where telegram_user_id = ${telegramUserId}`;
+      const isOwner = current?.id === invite.user_id;
 
+      if (invite.used) return { status: isOwner ? 'already_yours' : 'used', group } as JoinResult;
       if (invite.revoked) throw new Rejected('revoked');
       if (invite.expired) throw new Rejected('expired');
-      if (invite.max_uses !== null && invite.uses >= invite.max_uses) throw new Rejected('full');
+      if (current && !isOwner) throw new Rejected('already_registered');
+      // У студента уже другой Telegram (вошёл по прежней ссылке) — новая ссылка не перепривязывает
+      if (invite.user_has_telegram && !isOwner) throw new Rejected('used');
 
       await tx`
-        update invites
-           set uses    = uses + 1,
-               used_by = case when max_uses = 1 then ${userId}::uuid else used_by end,
-               used_at = case when max_uses = 1 then now() else used_at end
+        update users set telegram_user_id = ${telegramUserId}
+         where id = ${invite.user_id} and telegram_user_id is null`;
+      await tx`
+        update invites set used_by = ${invite.user_id}, used_at = now()
          where token = ${token}`;
-
-      // Персональное приглашение: ФИО из списка колледжа, роль преподавателя
-      if (invite.full_name) {
-        await tx`
-          update users set full_name = ${invite.full_name}, full_name_source = 'roster'
-           where id = ${userId} and full_name is null`;
-      }
-      if (invite.role === 'teacher') {
-        await tx`update users set role = 'teacher' where id = ${userId} and role = 'student'`;
-      }
+      await tx`
+        insert into group_members (group_id, user_id, role, invite_token)
+        values (${invite.group_id}, ${invite.user_id}, ${invite.role}, ${token})
+        on conflict (group_id, user_id) do update set invite_token = excluded.invite_token`;
       return { status: 'joined', group } as JoinResult;
     });
   } catch (error) {

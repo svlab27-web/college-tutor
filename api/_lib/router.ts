@@ -7,6 +7,7 @@ import { HttpError, json } from './http';
 import { postBot } from './routes/bot';
 import { postConsent } from './routes/consent';
 import { health } from './routes/health';
+import { postHelp } from './routes/help';
 import { getMe, postMe } from './routes/me';
 
 type Handler = (req: Request) => Promise<Response>;
@@ -15,6 +16,7 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   '/api/health': { GET: health },
   '/api/me': { GET: getMe, POST: postMe },
   '/api/consent': { POST: postConsent },
+  '/api/help': { POST: postHelp },
   '/api/bot': { POST: postBot },
 };
 

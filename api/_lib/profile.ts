@@ -1,13 +1,17 @@
-// Что студенту ещё нужно сделать до уроков с сохранением прогресса — без базы, чтобы проверять тестами.
+// Что студенту ещё нужно до уроков с сохранением прогресса — без базы, чтобы проверять тестами.
 //
-// Правило (решение 13.10.2026): младше 18 без согласия родителя к урокам с сохранением
-// НЕ пускаем — только демо без сохранения, пока преподаватель не внесёт согласие родителя.
-// В базе только год рождения, поэтому спорный год (исполняется 18 в этом году) считаем
+// Решение 14.10.2026: ФИО и год рождения вносит куратор, отметку о согласии родителя — тоже.
+// Студент сам даёт только согласие на обработку ПД.
+//   roster           — куратор не заполнил ФИО или год рождения (студент ничего сделать не может);
+//   consent          — студент ещё не дал согласие;
+//   parental_consent — младше 18, куратор ещё не отметил согласие родителя.
+// Младше 18 без согласия родителя — только демо без сохранения прогресса.
+// В базе только год рождения, поэтому год, в котором исполняется 18, считаем
 // несовершеннолетним — безопаснее.
 
 export const CONSENT_DOC_VERSION = 'draft-2026-10'; // docs/consent-draft.md, app/consent.js
 
-export type Need = 'full_name' | 'birth_year' | 'consent' | 'parental_consent';
+export type Need = 'roster' | 'consent' | 'parental_consent';
 
 export interface ProfileFacts {
   fullName: string | null;
@@ -30,30 +34,10 @@ export function isMinor(birthYear: number, currentYear: number): boolean {
 export function profileStatus(f: ProfileFacts): ProfileStatus {
   const minor = f.birthYear === null ? null : isMinor(f.birthYear, f.currentYear);
   const needs: Need[] = [];
-  if (!f.fullName) needs.push('full_name');
-  if (f.birthYear === null) needs.push('birth_year');
+  if (!f.fullName || f.birthYear === null) needs.push('roster');
   if (!f.hasConsent) needs.push('consent');
   if (minor && !f.hasParentalConsent) needs.push('parental_consent');
   return { needs, minor, canSaveProgress: needs.length === 0 };
-}
-
-// ── Проверка полей POST /api/me ─────────────────────────────────
-export const BIRTH_YEAR_MIN = 1950; // как check в 002
-export const BIRTH_YEAR_MAX = 2020;
-
-const FULL_NAME = /^\p{L}[\p{L}\s.'’-]{1,119}$/u;
-
-export function cleanFullName(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const name = value.trim().replace(/\s+/g, ' ');
-  return FULL_NAME.test(name) ? name : null;
-}
-
-export function cleanBirthYear(value: unknown): number | null {
-  const year = typeof value === 'string' ? Number(value) : value;
-  return Number.isInteger(year) && (year as number) >= BIRTH_YEAR_MIN && (year as number) <= BIRTH_YEAR_MAX
-    ? (year as number)
-    : null;
 }
 
 export function cleanLanguage(value: unknown): 'ru' | 'kk' | null {
