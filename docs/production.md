@@ -20,6 +20,8 @@
 
 AI (DeepSeek) остаётся внешним: туда уходят **только** текст вопроса и материал урока, без ФИО и Telegram ID (решение в `docs/decisions.md`).
 
+**Правило: реальные студенты — только на сервере в РК, с первого дня пилота.** Vercel + Supabase (Франкфурт) — только демо и тестовые аккаунты команды. Поэтому переносить с прототипа нечего (п. 5.2).
+
 ---
 
 ## 1. Целевая архитектура
@@ -31,7 +33,7 @@ AI (DeepSeek) остаётся внешним: туда уходят **толь�
 ┌──────────────── VPS в ЦОДе РК (Ubuntu 24.04) ────────────────┐
 │  Caddy :443  — HTTPS (Let's Encrypt), заголовки безопасности │
 │   ├─ /            → статика app/ (Mini App, кабинеты)        │
-│   └─ /api/*       → api:3000 (Node.js 20, TypeScript)        │
+│   └─ /api/*       → api:3000 (Node.js 24, TypeScript)        │
 │  api   — тот же код, что в api/ (#5, #6), как обычный сервер │
 │  db    — PostgreSQL 16, наружу не открыт                     │
 │  backup — ночной pg_dump → второе хранилище в РК             │
@@ -124,9 +126,13 @@ adduser deploy && usermod -aG sudo deploy
 mkdir -p /home/deploy/.ssh && cp ~/.ssh/authorized_keys /home/deploy/.ssh/ && chown -R deploy:deploy /home/deploy/.ssh
 # вход только по ключу, без root
 sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/; s/^#\?PermitRootLogin .*/PermitRootLogin no/' /etc/ssh/sshd_config
+# в облачных образах Ubuntu 24.04 этот файл включает вход по паролю и перебивает sshd_config
+rm -f /etc/ssh/sshd_config.d/50-cloud-init.conf
+sshd -T | grep -Ei 'passwordauthentication|permitrootlogin'   # оба должны быть: no
+# ⚠️ перед перезапуском — во ВТОРОМ окне проверить, что `ssh deploy@203.0.113.10` пускает по ключу; первое окно не закрывать
 systemctl restart ssh
 apt update && apt -y upgrade
-apt -y install ufw fail2ban unattended-upgrades
+apt -y install ufw fail2ban unattended-upgrades age
 timedatectl set-timezone Asia/Almaty
 ```
 
@@ -137,6 +143,8 @@ ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp
 ufw enable
 ```
 Порт базы (5432) **не открываем** — она доступна только контейнеру `api`.
+
+> ⚠️ Docker обходит `ufw`: опубликованный порт контейнера открыт в интернет, что бы ни было в файрволе. Поэтому у `db` в `docker-compose.yml` **никогда не добавляем `ports:`**.
 
 ### 3.4. Docker
 ```bash
@@ -161,6 +169,7 @@ usermod -aG docker deploy
 ```
 
 ### 4.1. `deploy/docker-compose.yml` (образец)
+`.env` лежит в `/opt/college-tutor/`, а compose-файл — в `deploy/`. Подстановку `${DB_PASSWORD}` Compose берёт только из `.env` рядом с compose-файлом (`env_file:` на неё не влияет), поэтому **все команды `docker compose` — с `--env-file`** (п. 4.4, 5.1, 7, 8). Без него пароль пустой: `postgres` не стартует, у `api` неверный `DATABASE_URL`.
 ```yaml
 services:
   caddy:
@@ -189,7 +198,7 @@ services:
       POSTGRES_USER: tutor
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes: [pgdata:/var/lib/postgresql/data]
-    # портов наружу нет
+    # ports: НЕ добавлять никогда — Docker обходит ufw (п. 3.3)
 
 volumes: { caddy_data: {}, pgdata: {} }
 ```
@@ -231,32 +240,32 @@ APP_URL=https://tutor.example.kz
 sudo mkdir -p /opt/college-tutor && sudo chown deploy:deploy /opt/college-tutor
 git clone https://github.com/svlab27-web/college-tutor.git /opt/college-tutor
 cd /opt/college-tutor && nano .env && chmod 600 .env
-cd deploy && docker compose up -d
-docker compose ps        # все три контейнера Up
+cd deploy && docker compose --env-file ../.env up -d
+docker compose --env-file ../.env ps        # все три контейнера Up
 ```
 
 ---
 
 ## 5. База данных
 
+`api` подключается **тем же пользователем, который применял миграции** (`tutor`): RLS включён без политик, и такие таблицы видит только их владелец — под другим пользователем все запросы вернут пусто.
+
 ### 5.1. Применить миграции
 ```bash
 cd /opt/college-tutor
 for f in supabase/migrations/*.sql; do
-  echo "== $f"; docker compose -f deploy/docker-compose.yml exec -T db psql -U tutor -d tutor -v ON_ERROR_STOP=1 < "$f"
+  echo "== $f"; docker compose --env-file .env -f deploy/docker-compose.yml exec -T db psql -U tutor -d tutor -v ON_ERROR_STOP=1 < "$f"
 done
 ```
 Строку `NOTIFY pgrst …` из `docs/database.md` здесь **не нужно** — PostgREST на своём сервере нет. Журнал применения ведём как раньше (`docs/database.md`, раздел 6).
 
-### 5.2. Перенос данных с Supabase (если пилот уже шёл на прототипе)
+### 5.2. Данные с прототипа не переносим
+По правилу из п. 0 реальных студентов на Supabase нет — там только демо и тестовые аккаунты, переносить нечего. Пилот с колледжем стартует сразу на сервере в РК.
+
+Если всё же понадобится выгрузка (например, тестовые данные для staging): строку брать в Supabase → **Connect → Session pooler** — прямой адрес `db.….supabase.co:5432` работает только по IPv6 и с обычного компьютера часто не подключается.
 ```bash
-# на компьютере администратора; строку подключения взять в Supabase → Project Settings → Database
-pg_dump "postgresql://…supabase.co:5432/postgres" --data-only --schema=public -Fc -f pilot.dump
-scp pilot.dump deploy@203.0.113.10:/tmp/
-# на сервере
-docker compose -f deploy/docker-compose.yml exec -T db pg_restore -U tutor -d tutor --data-only < /tmp/pilot.dump && rm /tmp/pilot.dump
+pg_dump "<строка Session pooler>" --data-only --schema=public -Fc -f staging.dump
 ```
-После проверки — удалить проект в Supabase (данные студентов не должны оставаться за рубежом).
 
 ### 5.3. Уроки
 Скрипт синхронизации (`content/**/*.json` → `lessons`, `lesson_translations`) запускается так же, но с `DATABASE_URL` сервера.
@@ -284,7 +293,7 @@ docker compose -f deploy/docker-compose.yml exec -T db pg_restore -U tutor -d tu
 **Ручной:**
 ```bash
 cd /opt/college-tutor && git pull
-docker compose -f deploy/docker-compose.yml up -d --build
+docker compose --env-file .env -f deploy/docker-compose.yml up -d --build
 # новая миграция → применить по 5.1 только её
 ```
 
@@ -299,17 +308,21 @@ docker compose -f deploy/docker-compose.yml up -d --build
 #!/usr/bin/env bash
 set -euo pipefail
 cd /opt/college-tutor/deploy
+DIR=/opt/college-tutor/backups
 TS=$(date +%F_%H%M)
-docker compose exec -T db pg_dump -U tutor -d tutor -Fc > /var/backups/tutor_$TS.dump
-find /var/backups -name 'tutor_*.dump' -mtime +14 -delete
-# копия во второе хранилище в РК, например:
-# rsync -a /var/backups/ backup@backup-host:/srv/tutor-backups/
+docker compose --env-file ../.env exec -T db pg_dump -U tutor -d tutor -Fc > "$DIR/tutor_$TS.dump"
+chmod 600 "$DIR/tutor_$TS.dump"
+find "$DIR" -name 'tutor_*.dump' -mtime +14 -delete
+# копия во второе хранилище в РК — только зашифрованная (в дампе данные студентов):
+# age -r "$(cat /opt/college-tutor/deploy/backup.pub)" "$DIR/tutor_$TS.dump" > "$DIR/tutor_$TS.dump.age"
+# rsync -a "$DIR"/*.age backup@backup-host:/srv/tutor-backups/ && rm "$DIR"/*.age
 ```
 ```bash
-sudo mkdir -p /var/backups && sudo chown deploy:deploy /var/backups
+mkdir -p /opt/college-tutor/backups && chmod 700 /opt/college-tutor/backups
 chmod +x deploy/backup.sh
 ( crontab -l 2>/dev/null; echo "15 3 * * * /opt/college-tutor/deploy/backup.sh" ) | crontab -
 ```
+`backups/` — внутри проекта, системную `/var/backups` не трогаем. Ключ шифрования `age`: публичный (`backup.pub`) — на сервере, **секретный — только у ответственного, не на сервере**; без него копия бесполезна для того, кто её украдёт, и для нас тоже — хранить в менеджере паролей.
 - Хранить **14 дней** локально + копия в другом месте **в РК**.
 - **Раз в месяц — проверочное восстановление** в пустую базу: бэкап, который ни разу не восстанавливали, считается несуществующим.
 - Плюс снапшоты VPS у провайдера.
@@ -319,7 +332,7 @@ chmod +x deploy/backup.sh
 ## 9. Мониторинг
 
 - `GET /api/health` → `200` + проверка базы. Внешний пинг раз в минуту (Uptime Kuma на втором сервере или сервис мониторинга), уведомления в Telegram администратору.
-- Логи: `docker compose logs --since 1h api`. Ротация: `json-file` с `max-size: 10m`, `max-file: 5`.
+- Логи: `cd deploy && docker compose --env-file ../.env logs --since 1h api`. Ротация: `json-file` с `max-size: 10m`, `max-file: 5`.
 - Диск, память, CPU — алерт при диске > 80 %.
 - Ошибки студентов — понятный текст, подробности только в логах (чек-лист в `docs/api.md`).
 
@@ -327,15 +340,15 @@ chmod +x deploy/backup.sh
 
 ## 10. Безопасность — чек-лист перед запуском
 
-- [ ] Сервер и база **в РК**, данные из Supabase перенесены и удалены
+- [ ] Сервер и база **в РК**; в Supabase — только демо и тестовые аккаунты, реальных студентов нет
 - [ ] SSH только по ключам, root-вход выключен, `ufw` + `fail2ban`, автообновления
-- [ ] Порт PostgreSQL наружу закрыт
+- [ ] Порт PostgreSQL наружу закрыт: у `db` нет `ports:`, `sshd -T` показывает `passwordauthentication no`
 - [ ] `.env` — `chmod 600`, секреты нигде больше (кроме менеджера паролей)
 - [ ] HTTPS везде, HSTS
 - [ ] Вебхук проверяет `X-Telegram-Bot-Api-Secret-Token`, Mini App — подпись `initData`
 - [ ] Лимиты запросов на студента (ответы, подсказки, AI)
 - [ ] В DeepSeek — без ФИО и Telegram ID
-- [ ] Бэкапы работают, восстановление проверено
+- [ ] Бэкапы работают, внешняя копия зашифрована, восстановление проверено
 - [ ] Список людей с доступом к серверу и базе; при уходе — отзыв ключей
 - [ ] Порядок удаления данных по запросу и по сроку (`users.delete_after`)
 - [ ] Согласия (`consents`) собираются до сохранения учебных данных
@@ -349,7 +362,7 @@ chmod +x deploy/backup.sh
 3. Покупаем VPS в РК, настраиваем (п. 3–4), применяем миграции (п. 5.1).
 4. Staging: тестовый бот на сервере, прогоняем вход, уроки, кабинет, бэкап/восстановление.
 5. Продакшен-бот: BotFather + вебхук (п. 6).
-6. Если пилот шёл на прототипе — перенос данных (п. 5.2), удаление проекта Supabase.
+6. Реальных студентов на прототипе нет (п. 0) — переносить нечего; проект Supabase остаётся для демо.
 7. Преподаватели получают приглашения, раздают студентам ссылки групп.
 8. Прототип на Vercel остаётся для демо — **без** реальных данных.
 
