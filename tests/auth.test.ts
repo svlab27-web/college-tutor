@@ -76,3 +76,7 @@ test('без start_param → startParam не задан', () => {
   const result = verifyInitData(initData(rest), BOT_TOKEN, NOW);
   assert.equal(result.ok && result.identity.startParam, undefined);
 });
+
+test('пустой токен бота → no_token, даже с «верной» для него подписью', () => {
+  assert.deepEqual(verifyInitData(initData(base, ''), '', NOW), { ok: false, reason: 'no_token' });
+});

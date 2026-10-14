@@ -18,7 +18,7 @@ export interface TelegramIdentity {
 
 export type InitDataResult =
   | { ok: true; identity: TelegramIdentity }
-  | { ok: false; reason: 'missing' | 'bad_hash' | 'expired' | 'bad_user' };
+  | { ok: false; reason: 'no_token' | 'missing' | 'bad_hash' | 'expired' | 'bad_user' };
 
 export function signInitData(fields: Record<string, string>, botToken: string): string {
   const secret = createHmac('sha256', 'WebAppData').update(botToken).digest();
@@ -31,6 +31,8 @@ export function verifyInitData(
   now: number = Date.now(),
   maxAgeSec: number = INIT_DATA_MAX_AGE_SEC,
 ): InitDataResult {
+  // С пустым токеном подпись может посчитать кто угодно — такую проверку не проводим вовсе
+  if (!botToken) return { ok: false, reason: 'no_token' };
   if (!initData) return { ok: false, reason: 'missing' };
 
   const params = new URLSearchParams(initData);

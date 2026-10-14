@@ -40,7 +40,10 @@ export async function route(req: Request): Promise<Response> {
       console.error(`${req.method} ${path}:`, error.message);
       return json(503, { error: 'not_configured', message: 'Сервис ещё настраивается. Попробуйте позже.' });
     }
-    console.error(`${req.method} ${path}:`, error);
+    // В логи — только код, ограничение и текст: в detail ошибки базы бывают значения строк
+    // (Telegram ID, ФИО), им в логах не место
+    const e = error as { code?: string; constraint_name?: string; message?: string };
+    console.error(`${req.method} ${path}:`, { code: e.code, constraint: e.constraint_name, message: e.message });
     return json(500, { error: 'internal', message: 'Что-то пошло не так. Попробуйте ещё раз.' });
   }
 }

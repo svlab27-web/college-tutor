@@ -4,8 +4,9 @@
 
 import { db } from '../db';
 import { HttpError, json } from '../http';
+import { CONSENT_DOC_VERSION, profileStatus, todayInKazakhstan } from '../profile';
 import { readJson, requireIdentity } from '../session';
-import { requireUser } from '../users';
+import { consentFlags, requireUser } from '../users';
 
 const MAX_TEXT = 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,6 +24,22 @@ export async function postHelp(req: Request): Promise<Response> {
 
   const sql = db();
   const user = await requireUser(sql, identity.telegramUserId);
+
+  // Свободный текст — это тоже данные студента: пока нет согласия (а у младше 18 —
+  // согласия родителя), принимаем только «ошибку в ФИО» — её нужно исправить до согласия
+  if (kind === 'help') {
+    const flags = await consentFlags(sql, user.id, CONSENT_DOC_VERSION);
+    const status = profileStatus({
+      fullName: user.full_name,
+      birth: { date: user.birth_date, year: user.birth_year },
+      ...flags,
+      today: todayInKazakhstan(),
+    });
+    if (!status.canSaveProgress) {
+      throw new HttpError(403, 'consent_required', 'Сначала нужно согласие на обработку данных. Ошибку в ФИО можно сообщить уже сейчас.');
+    }
+  }
+
   const [request] = await sql<{ id: string }[]>`
     insert into help_requests (user_id, group_id, lesson_id, text)
     values (

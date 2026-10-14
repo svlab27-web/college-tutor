@@ -19,13 +19,12 @@ export async function postConsent(req: Request): Promise<Response> {
 
   const sql = db();
   const user = await requireUser(sql, identity.telegramUserId);
+  // Повторное «Согласен» не создаёт дубль — уникальный индекс consents_one_active (005)
   await sql`
     insert into consents (user_id, telegram_user_id, kind, doc_version, granted_via)
-    select ${user.id}::uuid, ${identity.telegramUserId}::bigint, 'personal_data', ${CONSENT_DOC_VERSION}::text, 'telegram'
-     where not exists (
-       select 1 from consents
-        where user_id = ${user.id} and kind = 'personal_data'
-          and doc_version = ${CONSENT_DOC_VERSION} and revoked_at is null)`;
+    values (${user.id}, ${identity.telegramUserId}, 'personal_data', ${CONSENT_DOC_VERSION}, 'telegram')
+    on conflict (user_id, kind, doc_version) where revoked_at is null and kind = 'personal_data'
+    do nothing`;
 
   return json(200, { ok: true, consent_version: CONSENT_DOC_VERSION });
 }

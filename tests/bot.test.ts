@@ -6,11 +6,11 @@ import { route } from '../api/_lib/router';
 const cfg = { botUsername: 'tutornvl_bot', appUrl: 'https://college-tutor.vercel.app' };
 const msg = (text: string, type = 'private') => ({ message: { chat: { id: 42, type }, text } });
 
-test('/start с кодом группы → кнопка t.me/…?startapp=<код>', () => {
-  const r = handleUpdate(msg('/start g_AbCdEfGh12345678'), cfg);
+test('/start с личным кодом → кнопка t.me/…?startapp=<код>', () => {
+  const r = handleUpdate(msg('/start i_AbCdEfGh12345678'), cfg);
   assert.equal(r?.method, 'sendMessage');
   assert.equal(r?.chat_id, 42);
-  assert.deepEqual(r?.reply_markup?.inline_keyboard[0][0].url, 'https://t.me/tutornvl_bot?startapp=g_AbCdEfGh12345678');
+  assert.deepEqual(r?.reply_markup?.inline_keyboard[0][0].url, 'https://t.me/tutornvl_bot?startapp=i_AbCdEfGh12345678');
 });
 
 test('/start без кода → кнопка web_app на приложение', () => {

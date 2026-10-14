@@ -14,6 +14,7 @@ const BOT_TOKEN = '123456789:TEST_ONLY_not_a_real_token';
 const opts = { skip: url ? false : 'нет TEST_DATABASE_URL' };
 const run = Date.now().toString(36);
 let groupId = '';
+let curatorId = ''; // кто отмечает согласие родителя (005: recorded_by обязателен)
 let seq = 0;
 let nextTelegramId = Math.floor(Date.now() / 1000) * 1000;
 
@@ -23,6 +24,8 @@ before(async () => {
   process.env.BOT_TOKEN = BOT_TOKEN;
   const sql = db();
   [{ id: groupId }] = await sql<{ id: string }[]>`insert into groups (title) values ('ИС-21 тест') returning id`;
+  [{ id: curatorId }] = await sql<{ id: string }[]>`
+    insert into users (full_name, full_name_source, birth_year, role) values ('Куратор Тест', 'roster', 1985, 'teacher') returning id`;
 });
 
 after(async () => {
@@ -50,14 +53,14 @@ async function rosterStudent(
     returning id`;
   await sql`insert into group_members (group_id, user_id, role) values (${groupId}, ${id}, ${role})`;
   if (o.parental) {
-    await sql`insert into consents (user_id, kind, doc_version, granted_via, parent_name, document_ref)
-              values (${id}, 'parental', 'paper', 'paper', 'Иванова Г.', 'личное дело № 12')`;
+    await sql`insert into consents (user_id, kind, doc_version, granted_via, parent_name, document_ref, recorded_by)
+              values (${id}, 'parental', 'paper', 'paper', 'Иванова Г.', 'личное дело № 12', ${curatorId})`;
   }
   const token = `s_${run}_${String(++seq).padStart(6, '0')}`;
   await sql`
     insert into invites (token, group_id, role, user_id, expires_at, revoked_at)
     values (${token}, ${groupId}, ${role}, ${id},
-            ${o.expires === 'past' ? new Date(Date.now() - 86_400_000) : null},
+            ${o.expires === 'past' ? new Date(Date.now() - 86_400_000) : role === 'teacher' ? new Date(Date.now() + 7 * 86_400_000) : null},
             ${o.revoked ? new Date() : null})`;
   return { id, token };
 }
@@ -128,6 +131,7 @@ test('ссылкой уже вошёл другой Telegram → used, втор�
   const other = await call('GET', '/api/me', ++nextTelegramId, { startParam: s.token });
   assert.equal(other.body.join.status, 'used');
   assert.equal(other.body.registered, false);
+  assert.equal(other.body.join.group, undefined); // постороннему название группы не отдаём
 });
 
 test('Telegram уже привязан к студенту — чужая ссылка не работает', opts, async () => {
@@ -266,4 +270,63 @@ test('дата рождения: 18 исполнилось вчера — взр
   assert.equal(b.body.minor, true);
   assert.deepEqual(b.body.needs, ['parental_consent']);
   assert.equal((await call('POST', '/api/me', tg2, { body: { birth_date: '2000-01-01' } })).status, 409);
+});
+
+test('обращение «нужна помощь» — только после согласия; «ошибка в ФИО» — сразу', opts, async () => {
+  const s = await rosterStudent({ year: 2000 });
+  const tg = ++nextTelegramId;
+  await call('GET', '/api/me', tg, { startParam: s.token });
+  const early = await call('POST', '/api/help', tg, { body: { text: 'не понимаю задачу' } });
+  assert.equal(early.status, 403);
+  assert.equal(early.body.error, 'consent_required');
+  assert.equal((await call('POST', '/api/help', tg, { body: { kind: 'name_error', text: 'опечатка' } })).status, 200);
+  await call('POST', '/api/consent', tg, { body: { doc_version: CONSENT_DOC_VERSION } });
+  assert.equal((await call('POST', '/api/help', tg, { body: { text: 'не понимаю задачу' } })).status, 200);
+});
+
+test('младше 18 без согласия родителя — «нужна помощь» тоже нельзя', opts, async () => {
+  const s = await rosterStudent({ year: 2011 });
+  const tg = ++nextTelegramId;
+  await call('GET', '/api/me', tg, { startParam: s.token });
+  await call('POST', '/api/consent', tg, { body: { doc_version: CONSENT_DOC_VERSION } });
+  assert.equal((await call('POST', '/api/help', tg, { body: { text: 'помогите' } })).status, 403);
+});
+
+test('одна ссылка открыта двумя Telegram одновременно → один вошёл, второму used', opts, async () => {
+  const s = await rosterStudent();
+  const [a, b] = await Promise.all([
+    call('GET', '/api/me', ++nextTelegramId, { startParam: s.token }),
+    call('GET', '/api/me', ++nextTelegramId, { startParam: s.token }),
+  ]);
+  const statuses = [a.body.join.status, b.body.join.status].sort();
+  assert.deepEqual(statuses, ['joined', 'used']);
+});
+
+test('один Telegram открыл две чужие ссылки одновременно → одна привязка, вторая already_registered', opts, async () => {
+  const x = await rosterStudent({ name: 'Первый Одновременный' });
+  const y = await rosterStudent({ name: 'Второй Одновременный' });
+  const tg = ++nextTelegramId;
+  const [a, b] = await Promise.all([
+    call('GET', '/api/me', tg, { startParam: x.token }),
+    call('GET', '/api/me', tg, { startParam: y.token }),
+  ]);
+  assert.equal(a.status, 200);
+  assert.equal(b.status, 200);
+  const statuses = [a.body.join.status, b.body.join.status].sort();
+  assert.deepEqual(statuses, ['already_registered', 'joined']);
+  const sql = db();
+  const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from users where telegram_user_id = ${tg}`;
+  assert.equal(n, 1);
+});
+
+test('роль — только из базы: студенческая ссылка не даёт роль преподавателя', opts, async () => {
+  const s = await rosterStudent();
+  const tg = ++nextTelegramId;
+  const me = await call('GET', '/api/me', tg, { startParam: s.token });
+  assert.equal(me.body.user.role, 'student');
+  assert.equal(me.body.groups[0].role, 'student');
+  // поле role в запросе игнорируется — меняется только язык
+  const after = await call('POST', '/api/me', tg, { body: { role: 'teacher', ui_language: 'ru' } });
+  assert.equal(after.status, 200);
+  assert.equal(after.body.user.role, 'student');
 });

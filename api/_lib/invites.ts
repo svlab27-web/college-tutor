@@ -63,7 +63,8 @@ export async function bindInvite(sql: postgres.Sql, telegramUserId: number, toke
         select id from users where telegram_user_id = ${telegramUserId}`;
       const isOwner = current?.id === invite.user_id;
 
-      if (invite.used) return { status: isOwner ? 'already_yours' : 'used', group } as JoinResult;
+      // Название группы — только владельцу ссылки: постороннему не раскрываем, чья это ссылка
+      if (invite.used) return (isOwner ? { status: 'already_yours', group } : { status: 'used' }) as JoinResult;
       if (invite.revoked) throw new Rejected('revoked');
       if (invite.expired) throw new Rejected('expired');
       if (current && !isOwner) throw new Rejected('already_registered');
@@ -84,6 +85,9 @@ export async function bindInvite(sql: postgres.Sql, telegramUserId: number, toke
     });
   } catch (error) {
     if (error instanceof Rejected) return { status: error.status };
+    // Этот Telegram одновременно привязывают к двум студентам (две ссылки открыты разом):
+    // одна транзакция успела, вторая упёрлась в unique (telegram_user_id)
+    if ((error as { code?: string }).code === '23505') return { status: 'already_registered' };
     throw error;
   }
 }
