@@ -2,13 +2,22 @@
 // Обработчики не знают про платформу: Request → Response.
 // Подключают его api/[...path].ts (Vercel) и server/index.ts (свой сервер).
 
+import { ConfigError } from './env';
 import { HttpError, json } from './http';
+import { postBot } from './routes/bot';
+import { postConsent } from './routes/consent';
 import { health } from './routes/health';
+import { postHelp } from './routes/help';
+import { getMe, postMe } from './routes/me';
 
 type Handler = (req: Request) => Promise<Response>;
 
 const routes: Record<string, Partial<Record<string, Handler>>> = {
   '/api/health': { GET: health },
+  '/api/me': { GET: getMe, POST: postMe },
+  '/api/consent': { POST: postConsent },
+  '/api/help': { POST: postHelp },
+  '/api/bot': { POST: postBot },
 };
 
 export async function route(req: Request): Promise<Response> {
@@ -27,7 +36,14 @@ export async function route(req: Request): Promise<Response> {
     if (error instanceof HttpError) {
       return json(error.status, { error: error.code, message: error.message });
     }
-    console.error(`${req.method} ${path}:`, error);
+    if (error instanceof ConfigError) {
+      console.error(`${req.method} ${path}:`, error.message);
+      return json(503, { error: 'not_configured', message: 'Сервис ещё настраивается. Попробуйте позже.' });
+    }
+    // В логи — только код, ограничение и текст: в detail ошибки базы бывают значения строк
+    // (Telegram ID, ФИО), им в логах не место
+    const e = error as { code?: string; constraint_name?: string; message?: string };
+    console.error(`${req.method} ${path}:`, { code: e.code, constraint: e.constraint_name, message: e.message });
     return json(500, { error: 'internal', message: 'Что-то пошло не так. Попробуйте ещё раз.' });
   }
 }
