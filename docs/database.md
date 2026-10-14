@@ -59,9 +59,9 @@ erDiagram
 | `lessons` | Урок целиком из `content/*.json` на основном языке | `subject_id`, `slug`, `version`, `language` (003, по умолчанию `ru`), `content` (jsonb), `is_published`, `approved_by` |
 | `lesson_translations` | Урок на другом языке — из `*.kk.json` (003) | `(lesson_id, language)`, `content` (jsonb), `status` = `draft` / `review` / `approved`, `approved_by` |
 | `groups` | Учебные группы | `title`, `language` (`ru` / `kk`) |
-| `users` | Студенты и преподаватели | `telegram_user_id` (уникальный), `role`, `full_name` + `full_name_source`, `birth_year`, `delete_after`, `ui_language` (003), настройки напоминаний |
-| `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher` |
-| `invites` | Одноразовые приглашения в группу | `token`, `group_id`, `role`, `full_name` (персональное приглашение), `expires_at`, `used_by` |
+| `users` | Студенты и преподаватели; куратор создаёт заранее, Telegram привязывается при первом входе (004) | `telegram_user_id` (уникальный, пусто до первого входа), `role`, `full_name` + `full_name_source`, `birth_date` (004, если колледж даёт) / `birth_year`, `delete_after`, `ui_language` (003), настройки напоминаний |
+| `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher`, `invite_token` — по какой ссылке вступил (004) |
+| `invites` | Личная одноразовая ссылка студента или преподавателя (004) | `token` = `start_param`, `user_id` — чья ссылка, `group_id`, `role`, `expires_at`, `revoked_at`, `created_by`, `used_by` / `used_at` |
 | `attempts` | Каждый ответ студента | `answer` (jsonb), `is_correct`, `hints_used`, `is_independent`, `request_id`, `language` (003) |
 | `progress` | Где студент в уроке | `(user_id, lesson_id)`, `current_step`, `completed_steps`, `completed_at` |
 | `hint_events` | Каждая взятая подсказка | `level` 1–3, `source` = `script` / `ai` |
@@ -72,12 +72,15 @@ erDiagram
 ## 3. Основные сценарии
 
 ### Вход студента (#5)
-1. Студент открывает `t.me/<бот>?startapp=<token>`.
-2. `api/` проверяет подпись `initData` (HMAC по `BOT_TOKEN`) и свежесть `auth_date`.
+1. Куратор один раз вносит группу (лучше списком колледжа): студенты в `users` без `telegram_user_id` — ФИО (`full_name_source = 'roster'`), год рождения — и `group_members`.
+2. На каждого студента — **личная одноразовая ссылка** (`invites.user_id`), выдаётся лично: «Скопировать» или QR в кабинете. Общей ссылки группы для реальных студентов нет (решение 14.10.2026).
+3. Студент открывает `t.me/tutornvl_bot?startapp=<token>`. `api/` проверяет подпись `initData` (HMAC по `BOT_TOKEN`) и свежесть `auth_date`.
    **Никогда** не доверяем `initDataUnsafe` и `username`.
-3. По `telegram_user_id` находим или создаём `users`.
-4. Если пришёл `token`: проверяем `invites` (не использован, не истёк) → создаём `group_members` → ставим `used_by`, `used_at`.
-   Токен одноразовый: повторное открытие той же ссылки просто открывает приложение.
+4. В одной транзакции: ссылка не отозвана, не истекла, не использована → `users.telegram_user_id` = Telegram студента, ссылка помечена использованной. Подробно — в шапке `004_personal_invites.sql`.
+   Повторное открытие своей ссылки просто открывает приложение. Ссылка утекла — куратор отзывает её и выдаёт новую.
+5. ФИО и год рождения студент не вводит и не меняет — ошибку исправляет куратор («сообщить об ошибке»). Согласие на обработку ПД (`consents`) студент даёт сам. **Младше 18** без отметки куратора о согласии родителя — только демо без сохранения прогресса.
+
+Telegram без личной ссылки → демо, в базу ничего не пишем. Преподавателя так же приглашает администратор колледжа — личной ссылкой со сроком.
 
 ### Выдача урока (#6)
 - `api/` берёт `lessons.content` и **вырезает** поля `expected`, `tests`, `solution`, `common_mistakes` перед отправкой в браузер.
@@ -125,7 +128,7 @@ erDiagram
 
 ## 6. Миграции
 
-- Имя: `NNN_кратко.sql` — следующая свободная: `004_teacher_indexes.sql`.
+- Имя: `NNN_кратко.sql` — следующая свободная: `005_teacher_indexes.sql`.
 - **Применённую миграцию не меняем** — только новая сверху.
 - Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
   Позже можно перейти на Supabase CLI (`supabase db push`).
@@ -141,6 +144,7 @@ erDiagram
 | `001_init.sql` | 10 базовых таблиц, RLS, предметы `python` / `math` | — (каркас) | 13.10.2026 · `college-tutor` |
 | `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
 | `003_lesson_languages.sql` | Уроки на двух языках: `lessons.language`, таблица `lesson_translations`, `users.ui_language`, `attempts.language`, `ai_messages.language` | #21 | 13.10.2026 · `college-tutor` |
+| `004_personal_invites.sql` | Личная одноразовая ссылка: `invites.user_id` / `revoked_at` / `created_by`, формат токена, одна действующая ссылка на студента, `group_members.invite_token`, `users.birth_date`; ссылка преподавателя — только со сроком; `invites.full_name` удалён | #35 | 14.10.2026 · `college-tutor` |
 
 `seed.sql` в `college-tutor` не применялся.
 
@@ -157,7 +161,8 @@ erDiagram
 ## 8. Следующие миграции (черновик)
 
 - ~~**003** — уроки на двух языках~~ — сделано и применено (#21).
-- **004** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
+- **004** — личная ссылка студента (#5) — #35.
+- **005** — индексы под кабинет: `attempts (lesson_id, created_at)`, `group_members (user_id)`, `help_requests (group_id, status)`.
 - Учёт расходов на AI и дневной лимит — отдельная миграция не нужна: токены и стоимость пишутся в `ai_messages` (002), индекс `ai_messages_user_day` уже есть. Лимит считает `api/`.
 - Согласия и год рождения — сделаны в 002.
 - Срок хранения учебных данных и удаление по запросу — решить до пилота (поле `users.delete_after` уже есть, нужна процедура).
