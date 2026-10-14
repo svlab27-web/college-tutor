@@ -12,6 +12,7 @@ export interface UserRow {
   full_name: string | null;
   full_name_source: 'self' | 'roster' | null;
   birth_year: number | null;
+  birth_date: string | null; // YYYY-MM-DD (004), наружу не отдаём
   ui_language: 'ru' | 'kk' | null;
 }
 
@@ -26,7 +27,7 @@ export interface GroupRow {
 // Незнакомый Telegram в базу не пишем — он работает в демо.
 export async function findUser(sql: Sql, telegramUserId: number): Promise<UserRow | undefined> {
   const [user] = await sql<UserRow[]>`
-    select id, role, full_name, full_name_source, birth_year, ui_language from users where telegram_user_id = ${telegramUserId}`;
+    select id, role, full_name, full_name_source, birth_year, birth_date::text, ui_language from users where telegram_user_id = ${telegramUserId}`;
   return user;
 }
 

@@ -5,7 +5,7 @@ import type { TelegramIdentity } from '../auth';
 import { db } from '../db';
 import { HttpError, json } from '../http';
 import { bindInvite, isInviteToken, type JoinResult } from '../invites';
-import { CONSENT_DOC_VERSION, cleanLanguage, profileStatus } from '../profile';
+import { CONSENT_DOC_VERSION, cleanLanguage, profileStatus, todayInKazakhstan } from '../profile';
 import { readJson, requireIdentity } from '../session';
 import { consentFlags, findUser, requireUser, userGroups, type UserRow } from '../users';
 
@@ -17,9 +17,9 @@ async function profile(user: UserRow, identity: TelegramIdentity, join: JoinResu
   ]);
   const status = profileStatus({
     fullName: user.full_name,
-    birthYear: user.birth_year,
+    birth: { date: user.birth_date, year: user.birth_year },
     ...flags,
-    currentYear: new Date().getFullYear(),
+    today: todayInKazakhstan(),
   });
   // Язык: выбор студента → язык Telegram → язык первой группы → русский
   const language =
@@ -65,7 +65,7 @@ export async function getMe(req: Request): Promise<Response> {
 export async function postMe(req: Request): Promise<Response> {
   const identity = requireIdentity(req);
   const body = await readJson(req);
-  if ('full_name' in body || 'birth_year' in body) {
+  if ('full_name' in body || 'birth_year' in body || 'birth_date' in body) {
     throw new HttpError(
       409,
       'roster_only',
@@ -79,6 +79,6 @@ export async function postMe(req: Request): Promise<Response> {
   const user = await requireUser(sql, identity.telegramUserId);
   const [updated] = await sql<UserRow[]>`
     update users set ui_language = ${uiLanguage} where id = ${user.id}
-    returning id, role, full_name, full_name_source, birth_year, ui_language`;
+    returning id, role, full_name, full_name_source, birth_year, birth_date::text, ui_language`;
   return json(200, await profile(updated, identity, null));
 }

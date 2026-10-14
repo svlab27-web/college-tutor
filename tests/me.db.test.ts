@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { signInitData } from '../api/_lib/auth';
 import { closeDb, db } from '../api/_lib/db';
-import { CONSENT_DOC_VERSION } from '../api/_lib/profile';
+import { CONSENT_DOC_VERSION, todayInKazakhstan } from '../api/_lib/profile';
 import { route } from '../api/_lib/router';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -31,13 +31,22 @@ after(async () => {
 
 // Куратор заводит студента и выдаёт ему личную ссылку — как будет делать кабинет (#9)
 async function rosterStudent(
-  o: { name?: string | null; year?: number | null; role?: 'student' | 'teacher'; parental?: boolean; expires?: string; revoked?: boolean } = {},
+  o: {
+    name?: string | null;
+    year?: number | null;
+    date?: string; // YYYY-MM-DD — год берётся из даты
+    role?: 'student' | 'teacher';
+    parental?: boolean;
+    expires?: string;
+    revoked?: boolean;
+  } = {},
 ) {
   const sql = db();
   const role = o.role ?? 'student';
+  const year = o.date ? Number(o.date.slice(0, 4)) : o.year === undefined ? 2000 : o.year;
   const [{ id }] = await sql<{ id: string }[]>`
-    insert into users (full_name, full_name_source, birth_year, role)
-    values (${o.name === undefined ? 'Иванова Айгерим' : o.name}, 'roster', ${o.year === undefined ? 2000 : o.year}, ${role})
+    insert into users (full_name, full_name_source, birth_year, birth_date, role)
+    values (${o.name === undefined ? 'Иванова Айгерим' : o.name}, 'roster', ${year}, ${o.date ?? null}, ${role})
     returning id`;
   await sql`insert into group_members (group_id, user_id, role) values (${groupId}, ${id}, ${role})`;
   if (o.parental) {
@@ -230,4 +239,31 @@ test('«ошибка в ФИО» → обращение куратору в гр
   assert.equal(h.group_id, groupId);
   assert.equal((await call('POST', '/api/help', tg, { body: { text: '' } })).status, 400);
   assert.equal((await call('POST', '/api/help', ++nextTelegramId, { body: { text: 'помогите' } })).status, 403);
+});
+
+test('дата рождения: 18 исполнилось вчера — взрослый; исполнится завтра — ждём согласия родителя', opts, async () => {
+  // Даты считаем от «сегодня» в Казахстане, как сервер
+  const shift = (days: number) => {
+    const d = new Date(`${todayInKazakhstan()}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    d.setUTCFullYear(d.getUTCFullYear() - 18);
+    return d.toISOString().slice(0, 10);
+  };
+  const turned = await rosterStudent({ date: shift(-1) });
+  const tg1 = ++nextTelegramId;
+  await call('GET', '/api/me', tg1, { startParam: turned.token });
+  await call('POST', '/api/consent', tg1, { body: { doc_version: CONSENT_DOC_VERSION } });
+  const a = await call('GET', '/api/me', tg1);
+  assert.equal(a.body.minor, false);
+  assert.deepEqual(a.body.needs, []);
+  assert.equal(a.body.user.birth_date, undefined); // дату рождения наружу не отдаём
+
+  const notYet = await rosterStudent({ date: shift(1) });
+  const tg2 = ++nextTelegramId;
+  await call('GET', '/api/me', tg2, { startParam: notYet.token });
+  await call('POST', '/api/consent', tg2, { body: { doc_version: CONSENT_DOC_VERSION } });
+  const b = await call('GET', '/api/me', tg2);
+  assert.equal(b.body.minor, true);
+  assert.deepEqual(b.body.needs, ['parental_consent']);
+  assert.equal((await call('POST', '/api/me', tg2, { body: { birth_date: '2000-01-01' } })).status, 409);
 });
