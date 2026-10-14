@@ -26,7 +26,9 @@ alter table invites
 alter table invites alter column user_id set not null;
 
 alter table invites
-  add constraint invites_token_format check (token ~ '^[A-Za-z0-9_-]{16,64}$');
+  add constraint invites_token_format check (token ~ '^[A-Za-z0-9_-]{16,64}$'),
+  -- ссылка преподавателя (от администратора колледжа) — всегда со сроком
+  add constraint invites_teacher_expires check (role = 'student' or expires_at is not null);
 
 -- У студента одна действующая ссылка: новую выдаём только после отзыва старой
 create unique index invites_one_active on invites (user_id)
@@ -44,3 +46,7 @@ alter table users
   add column birth_date date check (birth_date between date '1950-01-01' and date '2020-12-31'),
   add constraint users_birth_date_year
     check (birth_date is null or (birth_year is not null and birth_year = extract(year from birth_date)));
+
+-- invites.full_name (002) больше не нужен: ФИО студента куратор вносит в users.full_name,
+-- ссылка лишь указывает на студента (user_id). Таблица пуста — данных не теряем.
+alter table invites drop column full_name;
