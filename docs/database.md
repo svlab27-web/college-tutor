@@ -1,7 +1,7 @@
 # База данных (Supabase)
 
 Владелец зоны: @Ehai1911 · ревью: @svlab27-web
-Статус: миграции 001, 002 и 003 применены в Supabase-проекте `college-tutor` · 13.10.2026
+Статус: миграции 001–005 применены в Supabase-проекте `college-tutor` · 14.10.2026
 
 ## Коротко
 
@@ -144,8 +144,12 @@ Telegram без личной ссылки → демо, в базу ничего
 | `001_init.sql` | 10 базовых таблиц, RLS, предметы `python` / `math` | — (каркас) | 13.10.2026 · `college-tutor` |
 | `002_fio_consents_ai.sql` | ФИО и срок хранения в `users`, `invites.full_name`, таблицы `consents` и `ai_messages` | #12 | 13.10.2026 · `college-tutor` |
 | `003_lesson_languages.sql` | Уроки на двух языках: `lessons.language`, таблица `lesson_translations`, `users.ui_language`, `attempts.language`, `ai_messages.language` | #21 | 13.10.2026 · `college-tutor` |
+<<<<<<< HEAD
 | `004_personal_invites.sql` | Личная одноразовая ссылка: `invites.user_id` / `revoked_at` / `created_by`, формат токена, одна действующая ссылка на студента, `group_members.invite_token`, `users.birth_date`; ссылка преподавателя — только со сроком; `invites.full_name` удалён | #35 | — |
-| `005_parental_consent.sql` | Согласие родителя отмечает куратор: `consents.document_ref`, `recorded_by` обязателен (куратора не удалить), способ `college_list`, без Telegram студента; при удалении студента отметки о согласии родителя удаляются; одно действующее согласие студента на версию текста | #36 | — |
+| `005_parental_consent.sql` | Согласие родителя отмечает куратор: `consents.document_ref`, `recorded_by` обязателен (куратора не удалить), способ `college_list`, без Telegram студента; при удалении студента отметки о согласии родителя удаляются; одно действующее согласие студента на версию текста | #36 | 14.10.2026 · `college-tutor` |
+=======
+| `004_personal_invites.sql` | Личная одноразовая ссылка: `invites.user_id` / `revoked_at` / `created_by`, формат токена, одна действующая ссылка на студента, `group_members.invite_token`, `users.birth_date`; ссылка преподавателя — только со сроком; `invites.full_name` удалён | #35 | 14.10.2026 · `college-tutor` |
+>>>>>>> db/group-invites
 
 `seed.sql` в `college-tutor` не применялся.
 
