@@ -126,7 +126,8 @@ if(!S||!S.groups)S=JSON.parse(JSON.stringify(DEFAULT));
 const save=()=>{try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}};
 const cache={};const studentsOf=g=>cache[g.id]||(cache[g.id]=makeStudents(g.n,g.seed||7,g.subject));
 const topicName=(subj,i)=>PLAN[subj]?PLAN[subj][lang][i]:'';
-const fmtDate=s=>new Date(s).toLocaleDateString(lang==='kk'?'kk-KZ':'ru-RU',{day:'numeric',month:'long'});
+// Казахских названий месяцев в браузерах нет («M10 24»), поэтому на казахском — цифрами: «24.10»
+const fmtDate=s=>{const d=new Date(s);return lang==='kk'?String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0'):d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})};
 const linkOf=g=>`https://t.me/${BOT}?startapp=g_${g.code}`;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
