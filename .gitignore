@@ -5,6 +5,7 @@ node_modules/
 .vercel/
 .DS_Store
 Thumbs.db
+dist/
 
 # бэкапы базы на сервере (docs/production.md, п. 8)
 backups/
