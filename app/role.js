@@ -1,5 +1,7 @@
-// Демо: экран «Кто вы? Студент / Преподаватель» при открытии из меню бота.
-// В сервисе роль определяет сервер по приглашению (#5), этот экран уберём.
+// Кто открыл приложение.
+// В Telegram роль знает сервер (session.js → GET /api/me): куратор / администратор — сразу в кабинет,
+// студент — в уроки; по личной ссылке сервер сам привязывает Telegram. Экран «Кто вы?» — только
+// для демо: вне Telegram или если этот Telegram ещё не заведён куратором.
 'use strict';
 (function(){
   const KEY='my-college-role';
@@ -10,8 +12,27 @@
   const set=v=>{try{v?localStorage.setItem(KEY,v):localStorage.removeItem(KEY)}catch(e){}};
   const toTeacher=()=>location.replace('teacher.html'+location.hash);
 
+  const inTg=!!(tg&&tg.initData);
+  if(inTg&&window.MeReady&&!q.has('choose')){
+    window.MeReady.then(me=>{
+      if(me&&me.registered){
+        const staff=me.user&&(me.user.role==='teacher'||me.user.role==='admin');
+        set(staff?'teacher':'student');
+        if(staff){toTeacher();return}
+        window.showJoinNotice&&window.showJoinNotice(me);
+        return;
+      }
+      if(me&&me.join&&window.showJoinNotice)window.showJoinNotice(me); // ссылка не сработала — объясняем, дальше демо
+      demo(me&&me.join?'student':'');
+    });
+    return;
+  }
+  demo('');
+
+  function demo(force){
   if(q.has('choose'))set(null);
   // Явный вход по ссылке важнее сохранённого выбора
+  if(force==='student'){set('student');return}
   if(sp==='teacher'||q.get('role')==='teacher'){set('teacher');toTeacher();return}
   if(sp==='student'||sp.indexOf('g_')===0||sp.indexOf('i_')===0||q.get('role')==='student'){set('student');return}
   const saved=get();
@@ -43,4 +64,5 @@
     document.body.appendChild(bg);
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',show):show();
+  }
 })();
