@@ -140,6 +140,15 @@ export async function postCuratorStudent(req: Request): Promise<Response> {
   const staff = await requireStaff(sql, identity.telegramUserId);
   const groupId = await requireGroup(sql, staff, body.group_id);
   const f = rosterFields(body, true);
+  // Как в bulk: такой студент уже есть в группе — 409, куратор может подтвердить (force: true) — бывают тёзки
+  if (body.force !== true) {
+    const [dup] = await sql<{ id: string }[]>`
+      select u.id from group_members m join users u on u.id = m.user_id
+       where m.group_id = ${groupId} and m.role = 'student'
+         and lower(u.full_name) = lower(${f.full_name!}) and u.birth_year = ${f.birth_year!}
+       limit 1`;
+    if (dup) throw new HttpError(409, 'duplicate', 'Такой студент уже есть в группе. Добавить ещё одного (тёзку)?');
+  }
 
   const id = await sql.begin(async (tx) => {
     const [{ id }] = await tx<{ id: string }[]>`
@@ -249,6 +258,10 @@ export async function postCuratorInvite(req: Request): Promise<Response> {
   const sql = db();
   const staff = await requireStaff(sql, identity.telegramUserId);
   const { groupId } = await requireStudent(sql, staff, id);
+  const [linked] = await sql<{ linked: boolean }[]>`select (telegram_user_id is not null) as linked from users where id = ${id}`;
+  if (linked?.linked) {
+    throw new HttpError(409, 'already_linked', 'Студент уже вошёл. Если вошёл не он — сначала «Отвязать Telegram», потом новая ссылка.');
+  }
   const invite = await sql.begin((tx) => issueInvite(tx, id, groupId, staff.id));
   return json(200, { invite });
 }
@@ -272,13 +285,19 @@ export async function postCuratorParental(req: Request): Promise<Response> {
   }
 
   await sql.begin(async (tx) => {
+    // Блокируем строку студента: два одновременных нажатия идут по очереди (до индекса из 006)
+    await tx`select id from users where id = ${id} for update`;
     const [active] = await tx<{ id: string }[]>`
-      select id from consents where user_id = ${id} and kind = 'parental' and revoked_at is null for update`;
+      select id from consents where user_id = ${id} and kind = 'parental' and revoked_at is null`;
     if (active) throw new HttpError(409, 'parental_exists', 'Согласие родителя уже отмечено.');
     // Сканы не храним — только где лежит бумага (005); Telegram студента здесь не нужен
     await tx`
       insert into consents (user_id, kind, doc_version, granted_via, parent_name, document_ref, recorded_by)
       values (${id}, 'parental', ${CONSENT_DOC_VERSION}, ${source}, ${parentName}, ${documentRef}, ${staff.id})`;
+  }).catch((e) => {
+    // Уникальный индекс на действующее согласие родителя (006) — тоже «уже отмечено»
+    if ((e as { code?: string }).code === '23505') throw new HttpError(409, 'parental_exists', 'Согласие родителя уже отмечено.');
+    throw e;
   });
   const [student] = await loadStudents(groupId, id);
   return json(200, { student });

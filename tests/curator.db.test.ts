@@ -223,6 +223,33 @@ test('список группы разом: всё или ничего, повт
   assert.equal((await call('POST', '/api/curator/students/bulk', strangerTg, { body: { group_id: groupId, students: [{ full_name: 'Взлом Взломов', birth_year: 2005 }] } })).status, 404);
 });
 
+test('повтор при одиночном добавлении — 409, с подтверждением (тёзка) — можно; ссылка вошедшему — 409', opts, async () => {
+  const s = await addStudent({ name: 'Ахметова Дана', birth_year: 2004 });
+  const dup = await call('POST', '/api/curator/students', curatorTg, { body: { group_id: groupId, full_name: 'ахметова дана', birth_year: 2004 } });
+  assert.equal(dup.status, 409);
+  assert.equal(dup.body.error, 'duplicate');
+  const forced = await call('POST', '/api/curator/students', curatorTg, { body: { group_id: groupId, full_name: 'Ахметова Дана', birth_year: 2004, force: true } });
+  assert.equal(forced.status, 201);
+
+  await call('GET', '/api/me', ++nextTg, { startParam: s.invite.token });
+  const again = await call('POST', `/api/curator/students/${s.id}/invite`, curatorTg);
+  assert.equal(again.status, 409);
+  assert.equal(again.body.error, 'already_linked');
+});
+
+test('двойное нажатие «отметить согласие» — одна отметка', opts, async () => {
+  const s = await addStudent({ name: 'Ермеков Санжар', birth_date: '2010-05-05' });
+  const body = { parent_name: 'Ермекова Асель', document_ref: 'личное дело № 3' };
+  const [a, b] = await Promise.all([
+    call('POST', `/api/curator/students/${s.id}/parental`, curatorTg, { body }),
+    call('POST', `/api/curator/students/${s.id}/parental`, curatorTg, { body }),
+  ]);
+  assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+  const [{ n }] = await db()<{ n: number }[]>`
+    select count(*)::int as n from consents where user_id = ${s.id} and kind = 'parental' and revoked_at is null`;
+  assert.equal(n, 1);
+});
+
 test('неизвестный путь и метод', opts, async () => {
   assert.equal((await call('GET', '/api/curator/students/not-a-uuid/invite', curatorTg)).status, 405);
   assert.equal((await call('POST', '/api/curator/students/not-a-uuid/invite', curatorTg)).status, 404);

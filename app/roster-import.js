@@ -7,7 +7,8 @@
 // гггг-мм-дд, дд/мм/гг, год, даты Excel. CSV из Excel бывает в windows-1251 — распознаём.
 'use strict';
 (function(){
-  const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  // SheetJS 0.20.x — с исправлениями уязвимостей 0.18.5 (prototype pollution, ReDoS); новые версии публикуются только на их CDN
+const XLSX_URL='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
   const JSZIP_URL='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
   const NAME_HDR=/фио|ф\.и\.о|фамил|имя|отчеств|аты|тег[іi]|әкес|студент|name/i;
   const DATE_HDR=/дата|рожд|туған|год|жыл|birth/i;
