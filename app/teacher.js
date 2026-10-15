@@ -97,7 +97,8 @@ Object.assign(T,{ru:{
   reissued:'Старая ссылка отключена. Новая готова — скопируйте или покажите QR.',
   cTitle:'Согласие родителя',cSub:n=>`Студент: ${n}. Родитель подписывает бланк в колледже — здесь только отметка.`,cParent:'ФИО родителя (законного представителя)',cRef:'Где лежит бланк',cRefPh:'Например, личное дело № 12',cCheck:'Бланк подписан родителем и хранится в колледже',cNote:'Сканы и фото бланка в сервис не загружаем.',save:'Сохранить',cSaved:'Согласие отмечено — прогресс студента теперь сохраняется.',cNeed:'Укажите, где лежит бланк, и подтвердите галочкой.',
   eTitle:'Данные студента',eName:'ФИО',eBirth:'Дата рождения',eSaved:'Данные исправлены.',
-  addTitle:'Добавить студента',add:'Добавить',added:'Студент добавлен — личная ссылка готова.',noRoster:'В группе пока нет студентов — загрузите список или добавьте вручную.'
+  addTitle:'Добавить студента',add:'Добавить',added:'Студент добавлен — личная ссылка готова.',noRoster:'В группе пока нет студентов — загрузите список или добавьте вручную.',
+  live:'Настоящие данные — из базы колледжа',linkedTag:'Вошёл в приложение',yearBorn:y=>`${y} г. р.`,unlink:'Отвязать Telegram',unlinkTitle:'Отвязать Telegram?',unlinkSub:n=>`${n}: если по ссылке вошёл не сам студент. Согласие на обработку данных отзывается, прогресс остаётся. Затем выдайте новую ссылку.`,unlinkDone:'Telegram отвязан. Выдайте студенту новую ссылку.',noLink:'Ссылки нет — выдайте новую',errGeneric:'Не получилось. Попробуйте ещё раз.',needParent:'Укажите ФИО родителя и где лежит бланк, подтвердите галочкой.',noGroups:'Вас пока не добавили ни в одну группу. Обратитесь к администратору колледжа.',listSoon:'Загрузка списка файлом — скоро. Пока добавляйте студентов по одному.',loading:'Загружаю…'
 },kk:{
   tabRoster:'Студенттер',
   groupsSub:'Топ құрып, студенттерді енгізіңіз — әрқайсысының жеке сілтемесі болады.',
@@ -115,7 +116,8 @@ Object.assign(T,{ru:{
   reissued:'Ескі сілтеме өшірілді. Жаңасы дайын — көшіріңіз немесе QR көрсетіңіз.',
   cTitle:'Ата-ана келісімі',cSub:n=>`Студент: ${n}. Ата-ана бланкке колледжде қол қояды — мұнда тек белгі.`,cParent:'Ата-ананың (заңды өкілдің) аты-жөні',cRef:'Бланк қайда сақталады',cRefPh:'Мысалы, жеке іс № 12',cCheck:'Бланкке ата-ана қол қойды және ол колледжде сақталады',cNote:'Бланктің сканы мен фотосын сервиске жүктемейміз.',save:'Сақтау',cSaved:'Келісім белгіленді — студенттің прогресі енді сақталады.',cNeed:'Бланк қайда екенін көрсетіп, белгімен растаңыз.',
   eTitle:'Студент деректері',eName:'Аты-жөні',eBirth:'Туған күні',eSaved:'Деректер түзетілді.',
-  addTitle:'Студент қосу',add:'Қосу',added:'Студент қосылды — жеке сілтеме дайын.',noRoster:'Топта әзірге студент жоқ — тізімді жүктеңіз немесе қолмен қосыңыз.'
+  addTitle:'Студент қосу',add:'Қосу',added:'Студент қосылды — жеке сілтеме дайын.',noRoster:'Топта әзірге студент жоқ — тізімді жүктеңіз немесе қолмен қосыңыз.',
+  live:'Нақты деректер — колледж базасынан',linkedTag:'Қосымшаға кірді',yearBorn:y=>`${y} ж. т.`,unlink:'Telegram-ды ажырату',unlinkTitle:'Telegram-ды ажырату керек пе?',unlinkSub:n=>`${n}: егер сілтеме арқылы студенттің өзі кірмесе. Деректерді өңдеуге келісім кері қайтарылады, прогресс сақталады. Содан кейін жаңа сілтеме беріңіз.`,unlinkDone:'Telegram ажыратылды. Студентке жаңа сілтеме беріңіз.',noLink:'Сілтеме жоқ — жаңасын беріңіз',errGeneric:'Болмады. Қайтадан көріңіз.',needParent:'Ата-ананың аты-жөнін және бланк қайда екенін көрсетіп, белгімен растаңыз.',noGroups:'Сізді әзірге ешбір топқа қоспаған. Колледж әкімшісіне жүгініңіз.',listSoon:'Тізімді файлмен жүктеу — жақында. Әзірге студенттерді бір-бірлеп қосыңыз.',loading:'Жүктеп жатырмын…'
 }}[lang]);
 T.tabs=Object.assign({groups:T.tabs.groups,roster:T.tabRoster},T.tabs);
 
@@ -192,7 +194,7 @@ function renderTabs(){const open=S.help.filter(h=>!h.done).length;
   document.getElementById('tabs').innerHTML=Object.entries(T.tabs).map(([k,v])=>`<button type="button" data-tab="${k}" class="${k===tab?'active':''}">${v}${k==='help'&&open?`<span class="count">${open}</span>`:''}</button>`).join('')}
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){tab=b.dataset.tab;render();window.scrollTo({top:0})}});
 function groupSelect(){return `<select class="i" id="grp" aria-label="${T.group}">${S.groups.map(g=>`<option value="${g.id}" ${g.id===cur?'selected':''}>${esc(g.name)} · ${T.subjects[g.subject]}</option>`).join('')}</select>`}
-function render(){renderTabs();document.getElementById('view').innerHTML=({groups,roster,progress,plan,tasks,help})[tab]()+`<p class="note">${T.demoNote}</p>`}
+function render(){renderTabs();document.getElementById('view').innerHTML=({groups,roster,progress,plan,tasks,help})[tab]()+(LIVE&&tab==='roster'?'':`<p class="note">${T.demoNote}</p>`)}
 
 // ── Экраны ──────────────────────────────────────────────────
 function groups(){const till=g=>fmtDate(g.created+g.days*864e5);
@@ -267,19 +269,34 @@ const ageOf=b=>{const d=new Date(b),n=new Date();let a=n.getFullYear()-d.getFull
 const fmtBirth=b=>b.split('-').reverse().join('.');
 const personalLink=s=>`https://t.me/${BOT}?startapp=i_${s.code}`;
 let rf='all',seq=0;
-function roster(){const g=S.groups.find(x=>x.id===cur)||S.groups[0];if(!g)return '';const R=rosterOf(g);
-  const minor=s=>ageOf(s.birth)<18,wait=R.filter(s=>minor(s)&&!s.consent),inn=R.filter(s=>s.used!==null),errs=R.filter(s=>s.err);
+// Живой режим: куратор, заведённый в базе, открыл кабинет в Telegram → «Студенты» работают с API (#9).
+// Иначе (браузер, демо-ссылка, не куратор) — демо-данные, как раньше.
+let LIVE=null;
+function api(method,path,body){return fetch('/api'+path,{method,headers:{'x-telegram-init-data':tg.initData,'content-type':'application/json'},body:body?JSON.stringify(body):undefined})
+  .then(r=>r.json().catch(()=>({})).then(j=>{if(!r.ok)throw Object.assign(new Error(j.message||T.errGeneric),{status:r.status});return j}))}
+const fromApi=x=>({id:x.id,name:x.full_name||'—',birth:x.birth_date,year:x.birth_year,minor:x.minor,consent:x.parental?{ref:x.parental.document_ref}:null,
+  code:x.invite&&!x.invite.expired?x.invite.token.replace(/^i_/,''):null,used:x.linked?0:null,err:x.name_errors>0,live:true});
+function loadLive(){return api('GET','/curator/students?group_id='+encodeURIComponent(LIVE.gid)).then(r=>{LIVE.st[LIVE.gid]=r.students.map(fromApi)})}
+function liveDo(p,msg){return p.then(r=>{const x=r.student;if(x){const L=LIVE.st[LIVE.gid],i=L.findIndex(s=>s.id===x.id),v=fromApi(x);if(i<0)L.push(v);else L[i]=v}closeModal();render();if(msg)toast(msg);return r}).catch(e=>toast(e.message||T.errGeneric))}
+if(inTg){api('GET','/curator/groups').then(r=>{LIVE={groups:r.groups||[],gid:(r.groups&&r.groups[0]||{}).id,st:{}};
+  if(LIVE.gid)return loadLive().then(()=>{tab='roster';render()});tab='roster';render()}).catch(()=>{})}
+const minorOf=s=>s.minor!==undefined&&s.minor!==null?s.minor:s.birth?ageOf(s.birth)<18:false;
+const birthText=s=>s.birth?`${T.age(ageOf(s.birth))} · ${fmtBirth(s.birth)}`:s.year?T.yearBorn(s.year):'';
+function roster(){if(LIVE&&!LIVE.gid)return `<h1>${T.rosterTitle}</h1><div class="card muted">${T.noGroups}</div>`;
+  const g=LIVE?null:(S.groups.find(x=>x.id===cur)||S.groups[0]);if(!LIVE&&!g)return '';const R=LIVE?(LIVE.st[LIVE.gid]||[]):rosterOf(g);
+  const minor=minorOf,wait=R.filter(s=>minor(s)&&!s.consent),inn=R.filter(s=>s.used!==null),errs=R.filter(s=>s.err);
   const shown=R.filter(s=>rf==='wait'?minor(s)&&!s.consent:rf==='out'?s.used===null:rf==='err'?s.err:true);
   const ref=c=>c.ref?esc(c.ref):T.refN(c.n);
-  const row=s=>`<div class="topic" style="align-items:flex-start"><span class="num">${R.indexOf(s)+1}</span><div class="grow"><b>${esc(s.name)}</b><div class="muted">${T.age(ageOf(s.birth))} · ${fmtBirth(s.birth)}</div>
+  const row=s=>`<div class="topic" style="align-items:flex-start"><span class="num">${R.indexOf(s)+1}</span><div class="grow"><b>${esc(s.name)}</b><div class="muted">${birthText(s)}</div>
     <div class="row" style="gap:6px;margin-top:6px">${minor(s)?(s.consent?`<span class="tag t-ok">${T.consentOk(ref(s.consent))}</span>`:`<span class="tag t-draft">${T.consentWait}</span>`):`<span class="tag t-none">18+</span>`}
-    ${s.used!==null?`<span class="tag t-ok">${T.entered(T.ago(s.used))}</span>`:`<span class="tag t-violet">${T.linkFree}</span>`}
+    ${s.used!==null?`<span class="tag t-ok">${s.live?T.linkedTag:T.entered(T.ago(s.used))}</span>`:s.code?`<span class="tag t-violet">${T.linkFree}</span>`:`<span class="tag t-draft">${T.noLink}</span>`}
     ${minor(s)&&!s.consent&&s.used!==null?`<span class="tag t-draft">${T.demoOnly}</span>`:''}${s.err?`<span class="tag t-draft">⚠ ${T.errMsg}</span>`:''}</div>
     <div class="row" style="gap:6px;margin-top:8px">${minor(s)&&!s.consent?`<button class="btn primary" data-act="consent" data-s="${s.id}">${T.markConsent}</button>`:''}
-    ${s.used===null?`<button class="btn secondary" data-act="scopy" data-s="${s.id}">${T.copy}</button><button class="btn secondary" data-act="sqr" data-s="${s.id}">${T.sqr}</button>`:''}
-    <button class="btn ${s.err?'secondary':'plain'}" data-act="edit" data-s="${s.id}">${T.edit}</button><button class="btn plain" data-act="reissue" data-s="${s.id}">${T.newLink}</button></div></div></div>`;
-  return `<h1>${T.rosterTitle}</h1><p class="sub">${T.rosterSub}</p>
-  <div class="card"><div class="row"><div class="grow">${groupSelect()}</div><label class="btn primary" style="cursor:pointer">${T.uploadList}<input type="file" id="roster-file" accept=".xls,.xlsx,.csv" hidden></label></div><div class="muted" style="margin-top:6px">${T.uploadListHint}</div></div>
+    ${s.used===null&&s.code?`<button class="btn secondary" data-act="scopy" data-s="${s.id}">${T.copy}</button><button class="btn secondary" data-act="sqr" data-s="${s.id}">${T.sqr}</button>`:''}
+    <button class="btn ${s.err?'secondary':'plain'}" data-act="edit" data-s="${s.id}">${T.edit}</button><button class="btn ${s.code||s.used!==null?'plain':'primary'}" data-act="reissue" data-s="${s.id}">${T.newLink}</button>${s.used!==null?`<button class="btn plain" data-act="unlink" data-s="${s.id}">${T.unlink}</button>`:''}</div></div></div>`;
+  const sel=LIVE?`<select class="i" id="lgrp" aria-label="${T.group}">${LIVE.groups.map(x=>`<option value="${x.id}" ${x.id===LIVE.gid?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`:groupSelect();
+  return `<h1>${T.rosterTitle}</h1><p class="sub">${T.rosterSub}</p>${LIVE?`<p><span class="tag t-ok">● ${T.live}</span></p>`:''}
+  <div class="card"><div class="row"><div class="grow">${sel}</div><label class="btn primary" style="cursor:pointer">${T.uploadList}<input type="file" id="roster-file" accept=".xls,.xlsx,.csv" hidden></label></div><div class="muted" style="margin-top:6px">${T.uploadListHint}</div></div>
   ${R.length?`<div class="tiles"><div class="tile"><b>${R.length}</b><span>${T.rTotal}</span></div><div class="tile"><b>${inn.length}</b><span>${T.rIn}</span></div><div class="tile"><b>${R.filter(minor).length}</b><span>${T.rMinor}</span></div><div class="tile ${wait.length?'alert':''}"><b>${wait.length}</b><span>${T.rWait}</span></div></div>
   <nav style="margin:14px 0 4px;padding:0;flex-wrap:wrap">${Object.entries(T.rf).map(([k,v])=>`<button type="button" data-act="rf" data-f="${k}" class="${rf===k?'active':''}">${v}${k==='wait'&&wait.length?`<span class="count">${wait.length}</span>`:k==='err'&&errs.length?`<span class="count">${errs.length}</span>`:''}</button>`).join('')}</nav>
   <div class="card"><div class="row"><b class="grow">${T.tableTitle}</b><button class="btn lime" data-act="qrseq">${T.seqBtn}</button></div>${shown.map(row).join('')||`<div class="muted" style="padding:12px 0">—</div>`}</div>`:`<div class="card muted">${T.noRoster}</div>`}
@@ -287,11 +304,11 @@ function roster(){const g=S.groups.find(x=>x.id===cur)||S.groups[0];if(!g)return
     <div><label class="f" for="s-name">${T.eName}</label><input class="i" id="s-name" maxlength="80"></div>
     <div><label class="f" for="s-birth">${T.eBirth}</label><input class="i" type="date" id="s-birth"></div>
     <button class="btn lime" data-act="sadd">${T.add}</button></div></div>`}
-const curRoster=()=>rosterOf(S.groups.find(x=>x.id===cur)||S.groups[0]);
+const curRoster=()=>LIVE?(LIVE.st[LIVE.gid]||[]):rosterOf(S.groups.find(x=>x.id===cur)||S.groups[0]);
 const findS=id=>curRoster().find(x=>x.id===id);
 function qrInto(box,text){if(window.QRCode)new QRCode(box,{text,width:200,height:200,colorDark:'#182c29',colorLight:'#ffffff'});else box.textContent=text}
 function copyText(l){(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>toast(T.copied)).catch(()=>{const ta=document.createElement('textarea');ta.value=l;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast(T.copied)}catch(err){}ta.remove()})}
-function showSeq(){const list=curRoster().filter(s=>s.used===null);
+function showSeq(){const list=curRoster().filter(s=>s.used===null&&s.code);
   if(!list.length){modal(`<h2>${T.seqTitle}</h2><p class="muted">${T.seqEmpty}</p><div class="row"><button class="btn primary" data-close>${T.close}</button></div>`);return}
   seq=(seq+list.length)%list.length;const s=list[seq];
   const m=modal(`<h2>${T.seqTitle}</h2><p class="muted">${T.seqSub}</p><div style="text-align:center"><b style="font-size:20px">${esc(s.name)}</b><div class="muted">${T.seqOf(seq+1,list.length)}</div></div><div class="qr" id="qr-box"></div><div class="row" style="justify-content:space-between"><button class="btn secondary" data-act="seqPrev">${T.prev}</button><button class="btn plain" data-close>${T.close}</button><button class="btn primary" data-act="seqNext">${T.next}</button></div>`);
@@ -300,7 +317,8 @@ function showSeq(){const list=curRoster().filter(s=>s.used===null);
 // ── Действия ────────────────────────────────────────────────
 document.getElementById('view').addEventListener('change',e=>{
   if(e.target.id==='grp'){cur=e.target.value;render()}
-  if(e.target.id==='roster-file'&&e.target.files[0])toast(T.listUploaded(e.target.files[0].name));
+  if(e.target.id==='lgrp'){LIVE.gid=e.target.value;loadLive().then(render).catch(err=>toast(err.message))}
+  if(e.target.id==='roster-file'&&e.target.files[0])toast(LIVE?T.listSoon:T.listUploaded(e.target.files[0].name));
   if(e.target.id==='ktp'&&e.target.files[0]){S.uploaded=e.target.files[0].name;save();render();toast(T.uploaded(S.uploaded,8))}
 });
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,g=S.groups.find(x=>x.id===b.dataset.g);
@@ -330,20 +348,31 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
   if(a==='qrseq'){seq=0;showSeq()}
   if(a==='seqNext'){seq++;showSeq()}
   if(a==='seqPrev'){seq--;showSeq()}
-  if(a==='reissue'){const s=findS(b.dataset.s);if(!s)return;s.code=newCode();s.used=null;save();render();toast(T.reissued)}
+  if(a==='reissue'){const s=findS(b.dataset.s);if(!s)return;
+    if(s.live){api('POST','/curator/students/'+s.id+'/invite').then(r=>{s.code=r.invite.token.replace(/^i_/,'');render();toast(T.reissued)}).catch(e=>toast(e.message));return}
+    s.code=newCode();s.used=null;save();render();toast(T.reissued)}
+  if(a==='unlink'){const s=findS(b.dataset.s);if(!s)return;modal(`<h2>${T.unlinkTitle}</h2><p class="muted">${esc(T.unlinkSub(s.name))}</p><div class="row"><button class="btn primary" data-act="unlinkOk" data-s="${s.id}">${T.unlink}</button><button class="btn plain" data-close>${T.close}</button></div>`)}
+  if(a==='unlinkOk'){const s=findS(b.dataset.s);if(!s)return;
+    if(s.live){liveDo(api('POST','/curator/students/'+s.id+'/unlink'),T.unlinkDone);return}
+    s.used=null;s.code=null;save();closeModal();render();toast(T.unlinkDone)}
   if(a==='consent'){const s=findS(b.dataset.s);if(!s)return;modal(`<h2>${T.cTitle}</h2><p class="muted">${esc(T.cSub(s.name))}</p>
     <label class="f" for="c-parent">${T.cParent}</label><input class="i" id="c-parent" maxlength="80">
     <label class="f" for="c-ref">${T.cRef}</label><input class="i" id="c-ref" maxlength="60" placeholder="${T.cRefPh}">
     <label class="row" style="margin:12px 0;font-size:13px;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="c-ok" style="margin-top:3px"> <span>${T.cCheck}</span></label>
     <p class="muted">${T.cNote}</p><div class="row"><button class="btn primary" data-act="consentSave" data-s="${s.id}">${T.save}</button><button class="btn plain" data-close>${T.close}</button></div>`)}
   if(a==='consentSave'){const s=findS(b.dataset.s);const ref=document.getElementById('c-ref').value.trim();if(!s)return;if(!ref||!document.getElementById('c-ok').checked){toast(T.cNeed);return}
-    s.consent={ref,parent:document.getElementById('c-parent').value.trim()};save();closeModal();render();toast(T.cSaved)}
+    const parent=document.getElementById('c-parent').value.trim();
+    if(s.live){if(parent.length<3){toast(T.needParent);return}liveDo(api('POST','/curator/students/'+s.id+'/parental',{parent_name:parent,document_ref:ref}),T.cSaved);return}
+    s.consent={ref,parent};save();closeModal();render();toast(T.cSaved)}
   if(a==='edit'){const s=findS(b.dataset.s);if(!s)return;modal(`<h2>${T.eTitle}</h2>${s.err?`<p class="muted">⚠ ${T.errMsg}</p>`:''}
     <label class="f" for="e-name">${T.eName}</label><input class="i" id="e-name" maxlength="80" value="${esc(s.name)}">
-    <label class="f" for="e-birth">${T.eBirth}</label><input class="i" type="date" id="e-birth" value="${s.birth}">
+    <label class="f" for="e-birth">${T.eBirth}</label><input class="i" type="date" id="e-birth" value="${s.birth||''}">
     <div class="row" style="margin-top:14px"><button class="btn primary" data-act="editSave" data-s="${s.id}">${T.save}</button><button class="btn plain" data-close>${T.close}</button></div>`)}
-  if(a==='editSave'){const s=findS(b.dataset.s);const n=document.getElementById('e-name').value.trim(),bd=document.getElementById('e-birth').value;if(!s||!n||!bd)return;s.name=n;s.birth=bd;s.err=false;save();closeModal();render();toast(T.eSaved)}
+  if(a==='editSave'){const s=findS(b.dataset.s);const n=document.getElementById('e-name').value.trim(),bd=document.getElementById('e-birth').value;if(!s||!n)return;
+    if(s.live){const body={full_name:n};if(bd)body.birth_date=bd;liveDo(api('PATCH','/curator/students/'+s.id,body),T.eSaved);return}
+    if(!bd)return;s.name=n;s.birth=bd;s.err=false;save();closeModal();render();toast(T.eSaved)}
   if(a==='sadd'){const n=document.getElementById('s-name'),bd=document.getElementById('s-birth');if(!n.value.trim()){n.focus();return}if(!bd.value){bd.focus();return}
+    if(LIVE){liveDo(api('POST','/curator/students',{group_id:LIVE.gid,full_name:n.value.trim(),birth_date:bd.value}),T.added);return}
     const gr=S.groups.find(x=>x.id===cur)||S.groups[0];const R=rosterOf(gr);R.push({id:gr.id+'-n'+Date.now(),name:n.value.trim(),birth:bd.value,consent:null,code:newCode(),used:null,err:false});gr.n=Math.max(gr.n,R.length);save();render();toast(T.added)}
   if(a==='assign'){const gr=S.groups.find(x=>x.id===cur);const sel=document.getElementById('t-topic');if(!sel)return;S.tasks.unshift({group:gr.id,topic:+sel.value,subject:gr.subject,deadline:document.getElementById('t-date').value||addDays(7),done:0});save();render();toast(T.assigned)}
 });
