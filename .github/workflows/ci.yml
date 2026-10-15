@@ -35,4 +35,6 @@ jobs:
           done
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
+      - name: Уроки из content/ (схема, ru ↔ kk)
+        run: npm run lessons:check
       - run: npm test
