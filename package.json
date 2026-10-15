@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "build:server": "tsc",
     "start": "node dist/server/index.js",
-    "test": "tsc && node --test \"dist/tests/**/*.test.js\""
+    "test": "tsc && node --test \"dist/tests/**/*.test.js\"",
+    "lessons:check": "tsc && node dist/scripts/sync-lessons.js --check",
+    "lessons:sync": "tsc && node dist/scripts/sync-lessons.js"
   },
   "dependencies": {
     "postgres": "^3.4.5"
