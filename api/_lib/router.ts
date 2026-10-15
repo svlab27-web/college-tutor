@@ -14,6 +14,7 @@ import {
   postCuratorInvite,
   postCuratorParental,
   postCuratorStudent,
+  postCuratorStudentsBulk,
   postCuratorUnlink,
 } from './routes/curator';
 import { health } from './routes/health';
@@ -30,6 +31,7 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   '/api/bot': { POST: postBot },
   '/api/curator/groups': { GET: getCuratorGroups },
   '/api/curator/students': { GET: getCuratorStudents, POST: postCuratorStudent },
+  '/api/curator/students/bulk': { POST: postCuratorStudentsBulk },
 };
 
 // Пути с id студента: обработчик сам достаёт id из URL и проверяет доступ

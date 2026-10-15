@@ -3,6 +3,7 @@
 // GET   /api/curator/groups                         — мои группы (у админа — все) со счётчиками
 // GET   /api/curator/students?group_id=…            — список группы: ФИО, возраст, согласия, ссылка, вход
 // POST  /api/curator/students                       — завести студента { group_id, full_name, birth_date | birth_year } + ссылка
+// POST  /api/curator/students/bulk                  — список группы разом { group_id, students: [...] } (до 100), всё или ничего
 // PATCH /api/curator/students/:id                   — исправить ФИО / дату рождения (закрывает «ошибку в ФИО»)
 // POST  /api/curator/students/:id/invite            — новая личная ссылка, прежняя отзывается
 // POST  /api/curator/students/:id/parental          — отметить согласие родителя { parent_name, document_ref, source? }
@@ -151,6 +152,64 @@ export async function postCuratorStudent(req: Request): Promise<Response> {
   });
   const [student] = await loadStudents(groupId, id);
   return json(201, { student });
+}
+
+const MAX_BULK = 100;
+
+// Список группы разом (вставили текстом или загрузили файл — разбирает и показывает для правки браузер).
+// Всё или ничего: если хоть одна строка неверна или повторяется — 400 с номерами строк, в базу ничего.
+export async function postCuratorStudentsBulk(req: Request): Promise<Response> {
+  const identity = requireIdentity(req);
+  const body = await readJson(req);
+  const sql = db();
+  const staff = await requireStaff(sql, identity.telegramUserId);
+  const groupId = await requireGroup(sql, staff, body.group_id);
+  const list = Array.isArray(body.students) ? body.students : [];
+  if (!list.length) throw new HttpError(400, 'empty_list', 'Список пуст.');
+  if (list.length > MAX_BULK) throw new HttpError(400, 'too_many', `За раз — не больше ${MAX_BULK} студентов.`);
+
+  const existing = new Set(
+    (await sql<{ k: string }[]>`
+      select lower(u.full_name) || '|' || u.birth_year as k
+        from group_members m join users u on u.id = m.user_id
+       where m.group_id = ${groupId} and m.role = 'student'`).map((r) => r.k),
+  );
+  const seen = new Set<string>();
+  const rows: { index: number; message: string }[] = [];
+  const valid = list.map((raw: unknown, index: number) => {
+    try {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new HttpError(400, 'bad_row', 'Пустая строка.');
+      const f = rosterFields(raw as Record<string, unknown>, true);
+      const key = `${f.full_name!.toLowerCase()}|${f.birth_year}`;
+      if (existing.has(key)) throw new HttpError(400, 'duplicate', 'Такой студент уже есть в группе.');
+      if (seen.has(key)) throw new HttpError(400, 'duplicate', 'Повторяется в списке.');
+      seen.add(key);
+      return f;
+    } catch (e) {
+      rows.push({ index, message: e instanceof HttpError ? e.message : 'Ошибка в строке.' });
+      return null;
+    }
+  });
+  if (rows.length) {
+    return json(400, { error: 'bad_rows', message: `Проверьте строки: ${rows.map((r) => r.index + 1).join(', ')}.`, rows });
+  }
+
+  const ids = await sql.begin(async (tx) => {
+    const out: string[] = [];
+    for (const f of valid) {
+      const [{ id }] = await tx<{ id: string }[]>`
+        insert into users (full_name, full_name_source, birth_year, birth_date, role)
+        values (${f!.full_name!}, 'roster', ${f!.birth_year!}, ${f!.birth_date ?? null}, 'student')
+        returning id`;
+      await tx`insert into group_members (group_id, user_id, role) values (${groupId}, ${id}, 'student')`;
+      await issueInvite(tx, id, groupId, staff.id);
+      out.push(id);
+    }
+    return out;
+  });
+  const created = new Set(ids);
+  const students = (await loadStudents(groupId)).filter((s) => created.has(s.id));
+  return json(201, { created: students.length, students });
 }
 
 export async function patchCuratorStudent(req: Request): Promise<Response> {

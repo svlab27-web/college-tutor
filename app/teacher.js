@@ -98,7 +98,8 @@ Object.assign(T,{ru:{
   cTitle:'Согласие родителя',cSub:n=>`Студент: ${n}. Родитель подписывает бланк в колледже — здесь только отметка.`,cParent:'ФИО родителя (законного представителя)',cRef:'Где лежит бланк',cRefPh:'Например, личное дело № 12',cCheck:'Бланк подписан родителем и хранится в колледже',cNote:'Сканы и фото бланка в сервис не загружаем.',save:'Сохранить',cSaved:'Согласие отмечено — прогресс студента теперь сохраняется.',cNeed:'Укажите, где лежит бланк, и подтвердите галочкой.',
   eTitle:'Данные студента',eName:'ФИО',eBirth:'Дата рождения',eSaved:'Данные исправлены.',
   addTitle:'Добавить студента',add:'Добавить',added:'Студент добавлен — личная ссылка готова.',noRoster:'В группе пока нет студентов — загрузите список или добавьте вручную.',
-  live:'Настоящие данные — из базы колледжа',linkedTag:'Вошёл в приложение',yearBorn:y=>`${y} г. р.`,unlink:'Отвязать Telegram',unlinkTitle:'Отвязать Telegram?',unlinkSub:n=>`${n}: если по ссылке вошёл не сам студент. Согласие на обработку данных отзывается, прогресс остаётся. Затем выдайте новую ссылку.`,unlinkDone:'Telegram отвязан. Выдайте студенту новую ссылку.',noLink:'Ссылки нет — выдайте новую',errGeneric:'Не получилось. Попробуйте ещё раз.',needParent:'Укажите ФИО родителя и где лежит бланк, подтвердите галочкой.',noGroups:'Вас пока не добавили ни в одну группу. Обратитесь к администратору колледжа.',listSoon:'Загрузка списка файлом — скоро. Пока добавляйте студентов по одному.',loading:'Загружаю…'
+  live:'Настоящие данные — из базы колледжа',linkedTag:'Вошёл в приложение',yearBorn:y=>`${y} г. р.`,unlink:'Отвязать Telegram',unlinkTitle:'Отвязать Telegram?',unlinkSub:n=>`${n}: если по ссылке вошёл не сам студент. Согласие на обработку данных отзывается, прогресс остаётся. Затем выдайте новую ссылку.`,unlinkDone:'Telegram отвязан. Выдайте студенту новую ссылку.',noLink:'Ссылки нет — выдайте новую',errGeneric:'Не получилось. Попробуйте ещё раз.',needParent:'Укажите ФИО родителя и где лежит бланк, подтвердите галочкой.',noGroups:'Вас пока не добавили ни в одну группу. Обратитесь к администратору колледжа.',listSoon:'Загрузка списка файлом — скоро. Пока добавляйте студентов по одному.',loading:'Загружаю…',
+  impTitle:'Список группы',impPaste:'Вставить списком',impFile:'Загрузить файл',impPasteHint:'По одному студенту в строке: ФИО и дата рождения (или год). Можно скопировать столбцы прямо из Excel.',impPh:'Иванова Анна Сергеевна 05.03.2009\nСейткалиев Әлихан 2006\n…',impParse:'Разобрать',impDrop:'Перетащите файл сюда или нажмите, чтобы выбрать',impFormats:'Excel (.xlsx, .xls), CSV, .txt или Word (.docx) с таблицей. Первая строка может быть заголовком: «ФИО», «Дата рождения».',impReading:'Читаю файл…',impEmpty:'Не нашла в списке ни одного студента. Проверьте формат.',impCheck:'Проверьте и при необходимости исправьте',impName:'ФИО',impBirth:'Дата или год рождения',impBirthPh:'дд.мм.гггг или год',impAddRow:'+ Строка',impBack:'← Назад',impSave:n=>`Добавить ${n} ${plural(n,['студента','студента','студентов'])}`,impOk:'Готово',impErrName:'ФИО: фамилия и имя',impErrBirth:'Нужна дата или год',impDupe:'Повтор',impExists:'Уже в группе',impDone:n=>`Добавлено: ${n}. У каждого — личная ссылка.`,impFixed:n=>`Исправьте строки с ошибками: ${n}`
 },kk:{
   tabRoster:'Студенттер',
   groupsSub:'Топ құрып, студенттерді енгізіңіз — әрқайсысының жеке сілтемесі болады.',
@@ -117,7 +118,8 @@ Object.assign(T,{ru:{
   cTitle:'Ата-ана келісімі',cSub:n=>`Студент: ${n}. Ата-ана бланкке колледжде қол қояды — мұнда тек белгі.`,cParent:'Ата-ананың (заңды өкілдің) аты-жөні',cRef:'Бланк қайда сақталады',cRefPh:'Мысалы, жеке іс № 12',cCheck:'Бланкке ата-ана қол қойды және ол колледжде сақталады',cNote:'Бланктің сканы мен фотосын сервиске жүктемейміз.',save:'Сақтау',cSaved:'Келісім белгіленді — студенттің прогресі енді сақталады.',cNeed:'Бланк қайда екенін көрсетіп, белгімен растаңыз.',
   eTitle:'Студент деректері',eName:'Аты-жөні',eBirth:'Туған күні',eSaved:'Деректер түзетілді.',
   addTitle:'Студент қосу',add:'Қосу',added:'Студент қосылды — жеке сілтеме дайын.',noRoster:'Топта әзірге студент жоқ — тізімді жүктеңіз немесе қолмен қосыңыз.',
-  live:'Нақты деректер — колледж базасынан',linkedTag:'Қосымшаға кірді',yearBorn:y=>`${y} ж. т.`,unlink:'Telegram-ды ажырату',unlinkTitle:'Telegram-ды ажырату керек пе?',unlinkSub:n=>`${n}: егер сілтеме арқылы студенттің өзі кірмесе. Деректерді өңдеуге келісім кері қайтарылады, прогресс сақталады. Содан кейін жаңа сілтеме беріңіз.`,unlinkDone:'Telegram ажыратылды. Студентке жаңа сілтеме беріңіз.',noLink:'Сілтеме жоқ — жаңасын беріңіз',errGeneric:'Болмады. Қайтадан көріңіз.',needParent:'Ата-ананың аты-жөнін және бланк қайда екенін көрсетіп, белгімен растаңыз.',noGroups:'Сізді әзірге ешбір топқа қоспаған. Колледж әкімшісіне жүгініңіз.',listSoon:'Тізімді файлмен жүктеу — жақында. Әзірге студенттерді бір-бірлеп қосыңыз.',loading:'Жүктеп жатырмын…'
+  live:'Нақты деректер — колледж базасынан',linkedTag:'Қосымшаға кірді',yearBorn:y=>`${y} ж. т.`,unlink:'Telegram-ды ажырату',unlinkTitle:'Telegram-ды ажырату керек пе?',unlinkSub:n=>`${n}: егер сілтеме арқылы студенттің өзі кірмесе. Деректерді өңдеуге келісім кері қайтарылады, прогресс сақталады. Содан кейін жаңа сілтеме беріңіз.`,unlinkDone:'Telegram ажыратылды. Студентке жаңа сілтеме беріңіз.',noLink:'Сілтеме жоқ — жаңасын беріңіз',errGeneric:'Болмады. Қайтадан көріңіз.',needParent:'Ата-ананың аты-жөнін және бланк қайда екенін көрсетіп, белгімен растаңыз.',noGroups:'Сізді әзірге ешбір топқа қоспаған. Колледж әкімшісіне жүгініңіз.',listSoon:'Тізімді файлмен жүктеу — жақында. Әзірге студенттерді бір-бірлеп қосыңыз.',loading:'Жүктеп жатырмын…',
+  impTitle:'Топ тізімі',impPaste:'Тізіммен қою',impFile:'Файл жүктеу',impPasteHint:'Әр жолда бір студент: аты-жөні және туған күні (немесе жылы). Excel-ден бағандарды тікелей көшіруге болады.',impPh:'Иванова Анна Сергеевна 05.03.2009\nСейткалиев Әлихан 2006\n…',impParse:'Талдау',impDrop:'Файлды осында сүйреңіз немесе таңдау үшін басыңыз',impFormats:'Excel (.xlsx, .xls), CSV, .txt немесе кестесі бар Word (.docx). Бірінші жол тақырып болуы мүмкін: «Аты-жөні», «Туған күні».',impReading:'Файлды оқып жатырмын…',impEmpty:'Тізімнен бірде-бір студент табылмады. Форматты тексеріңіз.',impCheck:'Тексеріп, қажет болса түзетіңіз',impName:'Аты-жөні',impBirth:'Туған күні немесе жылы',impBirthPh:'кк.аа.жжжж немесе жыл',impAddRow:'+ Жол',impBack:'← Артқа',impSave:n=>`${n} студент қосу`,impOk:'Дұрыс',impErrName:'Тегі мен аты',impErrBirth:'Күні немесе жылы керек',impDupe:'Қайталанады',impExists:'Топта бар',impDone:n=>`Қосылды: ${n}. Әрқайсысының жеке сілтемесі бар.`,impFixed:n=>`Қатесі бар жолдарды түзетіңіз: ${n}`
 }}[lang]);
 T.tabs=Object.assign({groups:T.tabs.groups,roster:T.tabRoster},T.tabs);
 
@@ -273,7 +275,7 @@ let rf='all',seq=0;
 // Иначе (браузер, демо-ссылка, не куратор) — демо-данные, как раньше.
 let LIVE=null;
 function api(method,path,body){return fetch('/api'+path,{method,headers:{'x-telegram-init-data':tg.initData,'content-type':'application/json'},body:body?JSON.stringify(body):undefined})
-  .then(r=>r.json().catch(()=>({})).then(j=>{if(!r.ok)throw Object.assign(new Error(j.message||T.errGeneric),{status:r.status});return j}))}
+  .then(r=>r.json().catch(()=>({})).then(j=>{if(!r.ok)throw Object.assign(new Error(j.message||T.errGeneric),{status:r.status,body:j});return j}))}
 const fromApi=x=>({id:x.id,name:x.full_name||'—',birth:x.birth_date,year:x.birth_year,minor:x.minor,consent:x.parental?{ref:x.parental.document_ref}:null,
   code:x.invite&&!x.invite.expired?x.invite.token.replace(/^i_/,''):null,used:x.linked?0:null,err:x.name_errors>0,live:true});
 function loadLive(){return api('GET','/curator/students?group_id='+encodeURIComponent(LIVE.gid)).then(r=>{LIVE.st[LIVE.gid]=r.students.map(fromApi)})}
@@ -296,7 +298,7 @@ function roster(){if(LIVE&&!LIVE.gid)return `<h1>${T.rosterTitle}</h1><div class
     <button class="btn ${s.err?'secondary':'plain'}" data-act="edit" data-s="${s.id}">${T.edit}</button><button class="btn ${s.code||s.used!==null?'plain':'primary'}" data-act="reissue" data-s="${s.id}">${T.newLink}</button>${s.used!==null?`<button class="btn plain" data-act="unlink" data-s="${s.id}">${T.unlink}</button>`:''}</div></div></div>`;
   const sel=LIVE?`<select class="i" id="lgrp" aria-label="${T.group}">${LIVE.groups.map(x=>`<option value="${x.id}" ${x.id===LIVE.gid?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`:groupSelect();
   return `<h1>${T.rosterTitle}</h1><p class="sub">${T.rosterSub}</p>${LIVE?`<p><span class="tag t-ok">● ${T.live}</span></p>`:''}
-  <div class="card"><div class="row"><div class="grow">${sel}</div><label class="btn primary" style="cursor:pointer">${T.uploadList}<input type="file" id="roster-file" accept=".xls,.xlsx,.csv" hidden></label></div><div class="muted" style="margin-top:6px">${T.uploadListHint}</div></div>
+  <div class="card"><div class="row"><div class="grow">${sel}</div><button class="btn primary" data-act="import">${T.uploadList}</button></div><div class="muted" style="margin-top:6px">${T.impFormats}</div></div>
   ${R.length?`<div class="tiles"><div class="tile"><b>${R.length}</b><span>${T.rTotal}</span></div><div class="tile"><b>${inn.length}</b><span>${T.rIn}</span></div><div class="tile"><b>${R.filter(minor).length}</b><span>${T.rMinor}</span></div><div class="tile ${wait.length?'alert':''}"><b>${wait.length}</b><span>${T.rWait}</span></div></div>
   <nav style="margin:14px 0 4px;padding:0;flex-wrap:wrap">${Object.entries(T.rf).map(([k,v])=>`<button type="button" data-act="rf" data-f="${k}" class="${rf===k?'active':''}">${v}${k==='wait'&&wait.length?`<span class="count">${wait.length}</span>`:k==='err'&&errs.length?`<span class="count">${errs.length}</span>`:''}</button>`).join('')}</nav>
   <div class="card"><div class="row"><b class="grow">${T.tableTitle}</b><button class="btn lime" data-act="qrseq">${T.seqBtn}</button></div>${shown.map(row).join('')||`<div class="muted" style="padding:12px 0">—</div>`}</div>`:`<div class="card muted">${T.noRoster}</div>`}
@@ -304,6 +306,39 @@ function roster(){if(LIVE&&!LIVE.gid)return `<h1>${T.rosterTitle}</h1><div class
     <div><label class="f" for="s-name">${T.eName}</label><input class="i" id="s-name" maxlength="80"></div>
     <div><label class="f" for="s-birth">${T.eBirth}</label><input class="i" type="date" id="s-birth"></div>
     <button class="btn lime" data-act="sadd">${T.add}</button></div></div>`}
+// ── Импорт списка группы: вставка или файл → таблица для правки → сохранить ──
+let IMP=null;
+const birthStr=b=>!b?'':b.date?b.date.split('-').reverse().join('.'):String(b.year);
+function impCheck(){if(!IMP)return;const have=new Set(curRoster().map(s=>(s.name||'').toLowerCase()+'|'+(s.year||(s.birth?+s.birth.slice(0,4):''))));const seen=new Set();
+  IMP.rows.forEach(r=>{const b=RosterImport.parseBirth(r.birthText);r.birth=b;const y=b?(b.year||+b.date.slice(0,4)):'';const k=r.name.trim().toLowerCase()+'|'+y;
+    r.err=!RosterImport.nameOk(r.name.trim().replace(/\s+/g,' '))?T.impErrName:!b?T.impErrBirth:have.has(k)?T.impExists:seen.has(k)?T.impDupe:(r.server||'');seen.add(k)})}
+function impOpen(){IMP={mode:'paste',rows:null,text:''};impRender()}
+function impRender(){if(!IMP)return;let body;
+  if(!IMP.rows){body=`<div class="imp-tabs"><button type="button" data-act="impMode" data-m="paste" class="${IMP.mode==='paste'?'on':''}">${T.impPaste}</button><button type="button" data-act="impMode" data-m="file" class="${IMP.mode==='file'?'on':''}">${T.impFile}</button></div>`+
+    (IMP.mode==='paste'?`<p class="muted">${T.impPasteHint}</p><textarea class="i" id="imp-text" placeholder="${T.impPh}">${esc(IMP.text)}</textarea><div class="row" style="margin-top:10px"><button class="btn primary" data-act="impParse">${T.impParse}</button><button class="btn plain" data-close>${T.close}</button></div>`
+      :`<label class="drop" id="imp-drop"><input type="file" id="imp-file" accept=".xlsx,.xls,.ods,.csv,.txt,.docx" hidden><b>${T.impDrop}</b><div class="muted" style="margin-top:6px">${T.impFormats}</div></label><div class="row" style="margin-top:10px"><button class="btn plain" data-close>${T.close}</button></div>`)}
+  else{impCheck();const bad=IMP.rows.filter(r=>r.err).length,n=IMP.rows.length;
+    body=`<p class="muted">${T.impCheck}</p><div class="imp-scroll"><table class="imp-table"><thead><tr><th>#</th><th>${T.impName}</th><th style="width:160px">${T.impBirth}</th><th></th><th></th></tr></thead><tbody>${IMP.rows.map((r,i)=>`<tr class="${r.err?'bad':''}"><td class="muted">${i+1}</td><td><input class="${r.err&&r.err!==T.impErrBirth?'e':''}" data-imp="name" data-i="${i}" value="${esc(r.name)}"></td><td><input class="${r.err===T.impErrBirth?'e':''}" data-imp="birth" data-i="${i}" value="${esc(r.birthText)}" placeholder="${T.impBirthPh}"></td><td class="imp-st ${r.err?'bad':'ok'}">${r.err?'⚠ '+esc(r.err):'✓ '+T.impOk}</td><td><button class="x" data-act="impDel" data-i="${i}" aria-label="×">✕</button></td></tr>`).join('')}</tbody></table></div>
+    <div class="row"><button class="btn secondary" data-act="impAdd">${T.impAddRow}</button><span class="grow"></span><button class="btn plain" data-act="impBack">${T.impBack}</button><button class="btn primary" data-act="impSave" ${bad||!n?'disabled':''}>${bad?T.impFixed(bad):T.impSave(n)}</button></div>`}
+  const m=modal(`<h2>${T.impTitle}</h2>${body}`);m.querySelector('.modal').classList.add('wide');
+  const drop=m.querySelector('#imp-drop');if(drop){['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,()=>drop.classList.remove('over')));
+    drop.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)impFile(f)})}}
+function impSet(rows){if(!rows.length){toast(T.impEmpty);return}IMP.rows=rows.map(r=>({name:r.name,birthText:birthStr(r.birth)}));impRender()}
+function impFile(f){toast(T.impReading);RosterImport.parseFile(f).then(impSet).catch(e=>toast(e.message))}
+function impSave(){const rows=IMP.rows.map(r=>{const o={full_name:r.name.trim().replace(/\s+/g,' ')};if(r.birth.date)o.birth_date=r.birth.date;else o.birth_year=r.birth.year;return o});
+  if(LIVE){api('POST','/curator/students/bulk',{group_id:LIVE.gid,students:rows}).then(r=>{(LIVE.st[LIVE.gid]=LIVE.st[LIVE.gid]||[]).push(...r.students.map(fromApi));IMP=null;closeModal();render();toast(T.impDone(r.created))})
+    .catch(e=>{toast(e.message);if(e.body&&e.body.rows){e.body.rows.forEach(x=>{if(IMP.rows[x.index])IMP.rows[x.index].server=x.message});impRender()}});return}
+  const g=S.groups.find(x=>x.id===cur)||S.groups[0];const R=rosterOf(g);
+  rows.forEach((o,i)=>R.push({id:g.id+'-i'+Date.now()+i,name:o.full_name,birth:o.birth_date||null,year:o.birth_year||(o.birth_date?+o.birth_date.slice(0,4):null),consent:null,code:newCode(),used:null,err:false}));
+  g.n=Math.max(g.n,R.length);save();IMP=null;closeModal();render();toast(T.impDone(rows.length))}
+document.getElementById('modal').addEventListener('input',e=>{const t=e.target;if(!IMP||!IMP.rows||t.dataset.imp===undefined)return;const r=IMP.rows[+t.dataset.i];if(t.dataset.imp==='name')r.name=t.value;else r.birthText=t.value;r.server=''})
+// Статусы строк обновляем на месте — без перерисовки, чтобы не сбивать курсор
+function impStatus(){impCheck();const m=document.getElementById('modal');let bad=0;
+  IMP.rows.forEach((r,i)=>{const tr=m.querySelector(`[data-i="${i}"][data-imp="name"]`);if(!tr)return;const row=tr.closest('tr');if(r.err)bad++;row.classList.toggle('bad',!!r.err);
+    row.querySelector('[data-imp="name"]').classList.toggle('e',!!r.err&&r.err!==T.impErrBirth);row.querySelector('[data-imp="birth"]').classList.toggle('e',r.err===T.impErrBirth);
+    const st=row.querySelector('.imp-st');st.className='imp-st '+(r.err?'bad':'ok');st.textContent=r.err?'⚠ '+r.err:'✓ '+T.impOk});
+  const sv=m.querySelector('[data-act="impSave"]');if(sv){sv.disabled=!!bad||!IMP.rows.length;sv.textContent=bad?T.impFixed(bad):T.impSave(IMP.rows.length)}}
+document.getElementById('modal').addEventListener('change',e=>{const t=e.target;if(t.id==='imp-file'&&t.files[0]){impFile(t.files[0]);return}if(IMP&&IMP.rows&&t.dataset.imp!==undefined)impStatus()})
 const curRoster=()=>LIVE?(LIVE.st[LIVE.gid]||[]):rosterOf(S.groups.find(x=>x.id===cur)||S.groups[0]);
 const findS=id=>curRoster().find(x=>x.id===id);
 function qrInto(box,text){if(window.QRCode)new QRCode(box,{text,width:200,height:200,colorDark:'#182c29',colorLight:'#ffffff'});else box.textContent=text}
@@ -343,6 +378,13 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
   if(a==='rework'){closeModal();toast(T.reworkMsg)}
   if(a==='toRoster'){cur=g.id;tab='roster';rf='all';render();window.scrollTo({top:0})}
   if(a==='rf'){rf=b.dataset.f;render()}
+  if(a==='import')impOpen();
+  if(a==='impMode'){IMP.mode=b.dataset.m;impRender()}
+  if(a==='impParse'){IMP.text=document.getElementById('imp-text').value;impSet(RosterImport.parseText(IMP.text))}
+  if(a==='impDel'){IMP.rows.splice(+b.dataset.i,1);impRender()}
+  if(a==='impAdd'){IMP.rows.push({name:'',birthText:''});impRender()}
+  if(a==='impBack'){IMP.rows=null;impRender()}
+  if(a==='impSave'){impCheck();if(IMP.rows.some(r=>r.err)){impRender();return}impSave()}
   if(a==='scopy'){const s=findS(b.dataset.s);if(s)copyText(personalLink(s))}
   if(a==='sqr'){const s=findS(b.dataset.s);if(!s)return;const m=modal(`<h2>${esc(s.name)}</h2><p class="muted">${T.sqrSub}</p><div class="qr" id="qr-box"></div><div class="link">${personalLink(s)}</div><div class="row"><button class="btn primary" data-close>${T.close}</button></div>`);qrInto(m.querySelector('#qr-box'),personalLink(s))}
   if(a==='qrseq'){seq=0;showSeq()}

@@ -195,6 +195,34 @@ test('отвязать Telegram: чужой выходит, согласие н�
   assert.equal((await call('GET', '/api/me', real)).body.user.id, s.id);
 });
 
+test('список группы разом: всё или ничего, повторы и ошибки — по номерам строк', opts, async () => {
+  const bad = await call('POST', '/api/curator/students/bulk', curatorTg, { body: { group_id: groupId, students: [
+    { full_name: 'Бекова Аружан', birth_date: '2009-09-01' },
+    { full_name: 'Аружан', birth_year: 2009 },
+    { full_name: 'Бекова Аружан', birth_date: '2009-09-01' },
+  ] } });
+  assert.equal(bad.status, 400);
+  assert.deepEqual(bad.body.rows.map((r: any) => r.index), [1, 2]);
+  const sql = db();
+  const [{ n }] = await sql<{ n: number }[]>`
+    select count(*)::int as n from users u join group_members m on m.user_id = u.id
+     where m.group_id = ${groupId} and u.full_name = 'Бекова Аружан'`;
+  assert.equal(n, 0); // ничего не записали
+
+  const ok = await call('POST', '/api/curator/students/bulk', curatorTg, { body: { group_id: groupId, students: [
+    { full_name: 'Бекова Аружан', birth_date: '2009-09-01' },
+    { full_name: 'Жумабаев Нурлан', birth_year: 2005 },
+  ] } });
+  assert.equal(ok.status, 201);
+  assert.equal(ok.body.created, 2);
+  assert.ok(ok.body.students.every((x: any) => /^i_[A-Za-z0-9]{16}$/.test(x.invite.token)));
+
+  const again = await call('POST', '/api/curator/students/bulk', curatorTg, { body: { group_id: groupId, students: [{ full_name: 'жумабаев нурлан', birth_year: 2005 }] } });
+  assert.equal(again.status, 400);
+  assert.match(again.body.rows[0].message, /уже есть/);
+  assert.equal((await call('POST', '/api/curator/students/bulk', strangerTg, { body: { group_id: groupId, students: [{ full_name: 'Взлом Взломов', birth_year: 2005 }] } })).status, 404);
+});
+
 test('неизвестный путь и метод', opts, async () => {
   assert.equal((await call('GET', '/api/curator/students/not-a-uuid/invite', curatorTg)).status, 405);
   assert.equal((await call('POST', '/api/curator/students/not-a-uuid/invite', curatorTg)).status, 404);

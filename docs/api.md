@@ -100,6 +100,7 @@
 | GET | `/api/curator/groups` | Мои группы (админ — все): `students`, `linked` |
 | GET | `/api/curator/students?group_id=` | Список группы: ФИО, дата/год рождения, `minor`, `linked` (вошёл), `has_consent`, `parental` (`document_ref`), действующая `invite` (`token`, `expires_at`), `needs`, `name_errors`, `open_help` |
 | POST | `/api/curator/students` | Завести студента `{ group_id, full_name, birth_date \| birth_year }` → сразу личная ссылка |
+| POST | `/api/curator/students/bulk` | Список группы разом `{ group_id, students: [...] }`, до 100; всё или ничего — ошибки и повторы (в списке и с группой) по номерам строк. Разбор файла (Excel, CSV, Word) и правка — в браузере (`app/roster-import.js`) |
 | PATCH | `/api/curator/students/:id` | Исправить ФИО / дату рождения; закрывает обращения «ошибка в ФИО» |
 | POST | `/api/curator/students/:id/invite` | Новая личная ссылка (`i_` + 16 символов без похожих, срок 30 дней); прежняя отзывается |
 | POST | `/api/curator/students/:id/parental` | Отметить согласие родителя `{ parent_name, document_ref, source: paper \| college_list }`; повторно — 409 |
