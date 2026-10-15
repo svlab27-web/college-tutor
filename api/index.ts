@@ -16,11 +16,7 @@ export function restorePath(req: Request): Request {
   return new Request(url, req);
 }
 
-const handler = async (req: Request) => {
-  const res = await route(restorePath(req));
-  if (new URL(req.url).searchParams.has('__debug')) console.log('api debug', { url: req.url });
-  return res;
-};
+const handler = (req: Request) => route(restorePath(req));
 
 export const GET = handler;
 export const POST = handler;

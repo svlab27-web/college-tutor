@@ -45,7 +45,7 @@ const patterns: { re: RegExp; methods: Partial<Record<string, Handler>> }[] = [
 export async function route(req: Request): Promise<Response> {
   const path = new URL(req.url).pathname.replace(/\/+$/, '') || '/';
   const methods = routes[path] ?? patterns.find((p) => p.re.test(path))?.methods;
-  if (!methods) return json(404, { error: 'not_found', path });
+  if (!methods) return json(404, { error: 'not_found' });
 
   const handler = methods[req.method];
   if (!handler) {
