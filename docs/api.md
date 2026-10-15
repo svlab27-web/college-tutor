@@ -91,6 +91,23 @@
 - пишем `attempts.language` и `is_independent`; прогресс сохраняем, только если `can_save_progress` (согласия есть);
 - в прототипной фазе результаты из браузерной проверки помечаем отдельно (решение по #7).
 
+## 2а. Кабинет куратора (#9, часть 1)
+
+Доступ: `users.role = 'teacher'` — только группы, где он `group_members.role = 'teacher'`; `admin` — все группы колледжа. Чужая или несуществующая группа / студент — одинаково 404. Личность — только из `initData`; `telegram_user_id` наружу не отдаём. Код: `api/_lib/curator.ts`, `api/_lib/routes/curator.ts`, тесты — `tests/curator.db.test.ts`.
+
+| Метод | Путь | Что делает |
+|---|---|---|
+| GET | `/api/curator/groups` | Мои группы (админ — все): `students`, `linked` |
+| GET | `/api/curator/students?group_id=` | Список группы: ФИО, дата/год рождения, `minor`, `linked` (вошёл), `has_consent`, `parental` (`document_ref`), действующая `invite` (`token`, `expires_at`), `needs`, `name_errors`, `open_help` |
+| POST | `/api/curator/students` | Завести студента `{ group_id, full_name, birth_date \| birth_year }` → сразу личная ссылка |
+| PATCH | `/api/curator/students/:id` | Исправить ФИО / дату рождения; закрывает обращения «ошибка в ФИО» |
+| POST | `/api/curator/students/:id/invite` | Новая личная ссылка (`i_` + 16 символов без похожих, срок 30 дней); прежняя отзывается |
+| POST | `/api/curator/students/:id/parental` | Отметить согласие родителя `{ parent_name, document_ref, source: paper \| college_list }`; повторно — 409 |
+| DELETE | `/api/curator/students/:id/parental` | Снять отметку (ошиблись студентом) — `revoked_at` |
+| POST | `/api/curator/students/:id/unlink` | «Отвязать Telegram» — как описано в п. 1; в лог — кто кого отвязал, без Telegram ID |
+
+Дату рождения куратор видит (он её вносил); студенту она не отдаётся. Дальше (часть 2): прогресс и «кто застрял», задания со сроком, ответы на обращения, КТП → черновики AI, выгрузка в Excel.
+
 ## 3. Уроки из `content/` в базу
 
 Отдельная задача (завести): скрипт `scripts/sync-lessons` — читает `content/**/*.json`, проверяет по `lesson.schema.json` и на совпадение структуры ru↔kk (правила в шапке `003_lesson_languages.sql`), делает upsert в `lessons` / `lesson_translations` через `DATABASE_URL`. Запуск — вручную или GitHub Action после merge; строка подключения — в секретах Action, не в репо. Без него `/api/lessons` пустой (сейчас в базе 0 уроков).
