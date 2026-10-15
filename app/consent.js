@@ -1,6 +1,7 @@
 // Согласие на обработку персональных данных — демо-экран для показа заказчику.
 // Тексты — ЧЕРНОВИК (docs/consent-draft.md): утверждает или возвращает на доработку заказчик.
-// В прототипе ничего не отправляется: в браузере запоминается только факт, что экран пройден.
+// Демо (вне Telegram или Telegram не заведён куратором): ничего не отправляется, в браузере — только факт, что экран пройден.
+// Студент, заведённый куратором (GET /api/me → registered): возраст знает сервер, «Согласен» → POST /api/consent.
 // В сервисе согласие пишет сервер в таблицу consents (#5); согласие родителя оформляет колледж (бланк), куратор отмечает в кабинете.
 'use strict';
 (function(){
@@ -18,7 +19,8 @@
       minorGo:'Понятно — в демо',
       go:'Продолжить', back:'← Назад', later:'Не сейчас — посмотреть демо',
       laterNote:'Без согласия результаты не сохраняются. В демо можно смотреть уроки.',
-      demoNote:'Демо: данные никуда не отправляются.',
+      saved:'Согласие сохранено — теперь прогресс сохраняется.',parentWait:'Нужно согласие родителя: родитель подписывает бланк в колледже, куратор отметит. Пока — демо без сохранения.',sendFail:'Не удалось отправить. Проверьте интернет и попробуйте ещё раз.',
+      demoNote:'Демо: данные никуда не отправляются.',liveNote:'Согласие сохраняется в учебном сервисе колледжа. Отозвать — через куратора группы или колледж.',
       link:'Согласие на обработку данных',
       adultText:[
         'Я, пользователь учебного сервиса «Мой колледж» (далее — Сервис), в соответствии с Законом Республики Казахстан от 21 мая 2013 года № 94-V «О персональных данных и их защите» даю согласие [наименование колледжа] (далее — Оператор) на сбор и обработку моих персональных данных на следующих условиях.',
@@ -44,7 +46,8 @@
       minorGo:'Түсінікті — демоға',
       go:'Жалғастыру', back:'← Артқа', later:'Қазір емес — демоны көру',
       laterNote:'Келісімсіз нәтижелер сақталмайды. Демода сабақтарды көруге болады.',
-      demoNote:'Демо: деректер ешқайда жіберілмейді.',
+      saved:'Келісім сақталды — енді прогресс сақталады.',parentWait:'Ата-ана келісімі керек: ата-ана колледжде бланкке қол қояды, куратор белгілейді. Әзірге — сақтаусыз демо.',sendFail:'Жіберу мүмкін болмады. Интернетті тексеріп, қайталап көріңіз.',
+      demoNote:'Демо: деректер ешқайда жіберілмейді.',liveNote:'Келісім колледждің оқу сервисінде сақталады. Кері қайтару — топ кураторы немесе колледж арқылы.',
       link:'Деректерді өңдеуге келісім',
       adultText:[
         'Мен, «Менің колледжім» оқу сервисінің (бұдан әрі — Сервис) пайдаланушысы, «Дербес деректер және оларды қорғау туралы» Қазақстан Республикасының 2013 жылғы 21 мамырдағы № 94-V Заңына сәйкес [колледждің атауы] (бұдан әрі — Оператор) менің дербес деректерімді мына шарттармен жинауына және өңдеуіне келісім беремін.',
@@ -61,6 +64,7 @@
     }
   };
   const L=()=>T[document.documentElement.lang==='kk'?'kk':'ru'];
+  let ME=null; // ответ GET /api/me, если студент заведён куратором
   const seen=()=>{try{return localStorage.getItem(SEEN_KEY)===DOC_VERSION}catch(e){return false}};
   const markSeen=()=>{try{localStorage.setItem(SEEN_KEY,DOC_VERSION)}catch(e){}};
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -79,7 +83,7 @@
       body=`<p>${t.intro}</p><h3>${t.age}</h3><div class="actions"><button type="button" class="btn primary" data-consent="adult">${t.adult}</button><button type="button" class="btn secondary" data-consent="minor">${t.minor}</button></div><div class="actions"><button type="button" class="btn plain" data-consent="later">${t.later}</button></div>`;
     }else{
       const paras=(who==='minor'?t.adultText.map((p,i)=>i===0?t.minorLead:i===3?t.minor3:p):t.adultText).map(p=>`<p>${esc(p)}</p>`).join('');
-      body=`${who==='minor'?`<p class="consent-note">${t.minorNote}</p>`:''}<div class="consent-text" tabindex="0">${paras}</div>${who==='minor'?`<p class="consent-check">${t.minorOk}</p><div class="actions"><button type="button" class="btn secondary" data-consent="back">${t.back}</button><button type="button" class="btn primary" data-consent="later">${t.minorGo}</button></div>`:`<label class="consent-check"><input type="checkbox" id="consent-ok"> <span>${t.checkAdult}</span></label><div class="actions"><button type="button" class="btn secondary" data-consent="back">${t.back}</button><button type="button" class="btn primary" data-consent="agree" disabled>${t.go}</button></div>`}<p class="consent-note">${t.demoNote}</p>`;
+      body=`${who==='minor'?`<p class="consent-note">${t.minorNote}</p>`:''}<div class="consent-text" tabindex="0">${paras}</div>${who==='minor'?`<p class="consent-check">${t.minorOk}</p><div class="actions"><button type="button" class="btn secondary" data-consent="back">${t.back}</button><button type="button" class="btn primary" data-consent="later">${t.minorGo}</button></div>`:`<label class="consent-check"><input type="checkbox" id="consent-ok"> <span>${t.checkAdult}</span></label><div class="actions"><button type="button" class="btn secondary" data-consent="back">${t.back}</button><button type="button" class="btn primary" data-consent="agree" disabled>${t.go}</button></div>`}<p class="consent-note">${!ME?t.demoNote:who==='minor'?'':t.liveNote}</p>`;
     }
     box.innerHTML=`<section class="modal consent" role="dialog" aria-modal="true" aria-labelledby="consent-title"><span class="consent-badge">${t.badge}</span><h2 id="consent-title">${t.title}</h2>${body}</section>`;
     box.classList.remove('hidden');
@@ -93,15 +97,34 @@
     e.stopPropagation();
     const a=b.dataset.consent;
     if(a==='adult'||a==='minor')show('text',a);
-    if(a==='back')show('age');
-    if(a==='agree'){markSeen();close()}
+    if(a==='back'){if(ME){close();return}show('age')} // заведённому студенту возраст выбирать не нужно
+    if(a==='agree'){
+      if(!ME){markSeen();close();return}
+      b.disabled=true;
+      fetch('/api/consent',{method:'POST',headers:window.ApiHeaders(),body:JSON.stringify({doc_version:ME.consent_version||DOC_VERSION})})
+        .then(r=>r.json().catch(()=>({})).then(j=>{if(!r.ok)throw new Error(j.message||L().sendFail);return j}))
+        .then(()=>{markSeen();close();ME.needs=(ME.needs||[]).filter(n=>n!=='consent');
+          if(typeof toast==='function')toast(ME.needs.includes('parental_consent')?L().parentWait:L().saved)})
+        .catch(err=>{b.disabled=false;if(typeof toast==='function')toast(err.message)})}
     if(a==='later'){markSeen();close();if(typeof toast==='function')toast(L().laterNote)}
   });
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!box.classList.contains('hidden')&&box.querySelector('[data-consent=later]')){markSeen();close()}});
 
   // Ссылка в подвале — открыть текст ещё раз
   const footer=document.querySelector('.footer');
-  if(footer){const a=document.createElement('button');a.type='button';a.className='consent-link';a.textContent=L().link;a.addEventListener('click',()=>show('age'));footer.appendChild(a)}
+  if(footer){const a=document.createElement('button');a.type='button';a.className='consent-link';a.textContent=L().link;a.addEventListener('click',()=>ME?show('text',(ME.needs||[]).includes('consent')||!ME.minor?'adult':'minor'):show('age'));footer.appendChild(a)}
 
-  if(!seen())show('age');
+  // Заведённый студент: возраст известен — сразу нужный текст; всё уже есть — экран не показываем
+  (window.MeReady||Promise.resolve(null)).then(me=>{
+    if(me&&me.registered){
+      ME=me;
+      const staff=me.user&&(me.user.role==='teacher'||me.user.role==='admin');
+      if(staff)return; // куратора role.js уводит в кабинет
+      if((me.needs||[]).includes('consent'))show('text','adult');
+      // Ждём согласие родителя: экран — один раз, дальше короткое напоминание
+      else if((me.needs||[]).includes('parental_consent')){if(!seen())show('text','minor');else if(typeof toast==='function')toast(L().parentWait)}
+      return;
+    }
+    if(!seen())show('age');
+  });
 })();
