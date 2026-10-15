@@ -1,6 +1,6 @@
 // Один маршрутизатор на все /api/* (лимит Hobby — 12 функций, docs/api.md п. 0).
 // Обработчики не знают про платформу: Request → Response.
-// Подключают его api/[...path].ts (Vercel) и server/index.ts (свой сервер).
+// Подключают его api/index.ts (Vercel, через rewrite в vercel.json) и server/index.ts (свой сервер).
 
 import { ConfigError } from './env';
 import { HttpError, json } from './http';
