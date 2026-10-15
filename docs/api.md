@@ -20,7 +20,7 @@
    - `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL` — есть (DeepSeek, `docs/decisions.md`);
    - `APP_URL` (кнопка бота), `BOT_USERNAME` (по умолчанию `tutornvl_bot`).
    Вписывает владелец Vercel; значения в чат и код не пишем.
-3. **Лимит Hobby — 12 функций.** Одна функция `api/[...path].ts` на все `/api/*`, включая вебхук бота `/api/bot`. Общий код — в `api/_lib/` (файлы с `_` функциями не считаются).
+3. **Лимит Hobby — 12 функций.** Одна функция `api/index.ts` на все `/api/*` (`vercel.json`: rewrite `/api/<путь>` → `/api?__path=<путь>`, функция восстанавливает путь), включая вебхук бота `/api/bot`. Общий код — в `api/_lib/` (файлы с `_` функциями не считаются).
 
 ## 1. Вход (#5)
 
@@ -90,6 +90,24 @@
 - ответ: `{ correct, feedback, progress }`, где `feedback` — из `success` / `common_mistakes` / общий;
 - пишем `attempts.language` и `is_independent`; прогресс сохраняем, только если `can_save_progress` (согласия есть);
 - в прототипной фазе результаты из браузерной проверки помечаем отдельно (решение по #7).
+
+## 2а. Кабинет куратора (#9, часть 1)
+
+Доступ: `users.role = 'teacher'` — только группы, где он `group_members.role = 'teacher'`; `admin` — все группы колледжа. Чужая или несуществующая группа / студент — одинаково 404. Личность — только из `initData`; `telegram_user_id` наружу не отдаём. Код: `api/_lib/curator.ts`, `api/_lib/routes/curator.ts`, тесты — `tests/curator.db.test.ts`.
+
+| Метод | Путь | Что делает |
+|---|---|---|
+| GET | `/api/curator/groups` | Мои группы (админ — все): `students`, `linked` |
+| GET | `/api/curator/students?group_id=` | Список группы: ФИО, дата/год рождения, `minor`, `linked` (вошёл), `has_consent`, `parental` (`document_ref`), действующая `invite` (`token`, `expires_at`), `needs`, `name_errors`, `open_help` |
+| POST | `/api/curator/students` | Завести студента `{ group_id, full_name, birth_date \| birth_year }` → сразу личная ссылка |
+| POST | `/api/curator/students/bulk` | Список группы разом `{ group_id, students: [...] }`, до 100; всё или ничего — ошибки и повторы (в списке и с группой) по номерам строк. Разбор файла (Excel, CSV, Word) и правка — в браузере (`app/roster-import.js`) |
+| PATCH | `/api/curator/students/:id` | Исправить ФИО / дату рождения; закрывает обращения «ошибка в ФИО» |
+| POST | `/api/curator/students/:id/invite` | Новая личная ссылка (`i_` + 16 символов без похожих, срок 30 дней); прежняя отзывается |
+| POST | `/api/curator/students/:id/parental` | Отметить согласие родителя `{ parent_name, document_ref, source: paper \| college_list }`; повторно — 409 |
+| DELETE | `/api/curator/students/:id/parental` | Снять отметку (ошиблись студентом) — `revoked_at` |
+| POST | `/api/curator/students/:id/unlink` | «Отвязать Telegram» — как описано в п. 1; в лог — кто кого отвязал, без Telegram ID |
+
+Дату рождения куратор видит (он её вносил); студенту она не отдаётся. Дальше (часть 2): прогресс и «кто застрял», задания со сроком, ответы на обращения, КТП → черновики AI, выгрузка в Excel.
 
 ## 3. Уроки из `content/` в базу
 
