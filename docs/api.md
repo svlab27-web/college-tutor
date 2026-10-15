@@ -119,10 +119,10 @@
   - `is_published = status = 'approved'` (утверждает преподаватель), `approved_by` из файла; перевод — `lesson_translations` со своим статусом;
   - уроки, которых нет в `content/`, не удаляются (на них ссылаются попытки) — скрипт только сообщает.
 
-Запуск на базе прототипа (строку Transaction pooler не вставлять в чат и не сохранять в файлы — её спросит терминал, на экран не выводится):
+Запуск на базе прототипа (строку Transaction pooler не вставлять в чат и не сохранять в файлы — её спросит терминал, на экран не выводится; работает и в bash, и в zsh):
 
 ```bash
-read -s "DATABASE_URL?Строка подключения: " && echo && export DATABASE_URL && npm run lessons:sync; unset DATABASE_URL
+printf "Строка подключения: " && read -rs DATABASE_URL && echo && export DATABASE_URL && npm run lessons:sync; unset DATABASE_URL
 ```
 
 Сейчас оба урока в статусе `review` (переводы — `draft`): в базу попадут неопубликованными; опубликует `status: "approved"` после проверки преподавателем. Автозапуск после merge (GitHub Action с секретом `DATABASE_URL`) — когда понадобится.
