@@ -7,9 +7,11 @@
 // гггг-мм-дд, дд/мм/гг, год, даты Excel. CSV из Excel бывает в windows-1251 — распознаём.
 'use strict';
 (function(){
-  // SheetJS 0.20.x — с исправлениями уязвимостей 0.18.5 (prototype pollution, ReDoS); новые версии публикуются только на их CDN
-const XLSX_URL='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
-  const JSZIP_URL='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+  // SheetJS 0.20.x — с исправлениями уязвимостей 0.18.5 (prototype pollution, ReDoS); новые версии публикуются только на их CDN.
+  // SRI: браузер не выполнит файл, если CDN отдаст не тот (ревью #42). Меняете версию — пересчитайте хэш:
+  //   curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A
+  const XLSX_LIB={src:'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',integrity:'sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT'};
+  const JSZIP_LIB={src:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',integrity:'sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg=='}; // хэш с cdnjs
   const NAME_HDR=/фио|ф\.и\.о|фамил|имя|отчеств|аты|тег[іi]|әкес|студент|name/i;
   const DATE_HDR=/дата|рожд|туған|год|жыл|birth/i;
   const pad=n=>String(n).padStart(2,'0');
@@ -65,19 +67,19 @@ const XLSX_URL='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.j
     return fromMatrix(body.map(l=>l.replace(/,/g,' ').trim().split(/\s+/)),false)}
 
   const loaded={};
-  function load(src){return loaded[src]||(loaded[src]=new Promise((ok,fail)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>{delete loaded[src];fail(new Error('Не удалось загрузить модуль для чтения файла. Проверьте интернет.'))};document.head.appendChild(s)}))}
+  function load({src,integrity}){return loaded[src]||(loaded[src]=new Promise((ok,fail)=>{const s=document.createElement('script');s.src=src;s.integrity=integrity;s.crossOrigin='anonymous';s.onload=ok;s.onerror=()=>{delete loaded[src];fail(new Error('Не удалось загрузить модуль для чтения файла. Проверьте интернет.'))};document.head.appendChild(s)}))}
 
   async function readCsv(file){
     const buf=await file.arrayBuffer();let t=new TextDecoder('utf-8').decode(buf);
     if(t.includes('�'))t=new TextDecoder('windows-1251').decode(buf); // CSV из русского Excel
     return parseText(t.replace(/^﻿/,''))}
   async function readXlsx(file){
-    await load(XLSX_URL);
+    await load(XLSX_LIB);
     const wb=window.XLSX.read(await file.arrayBuffer(),{cellDates:true});
     const ws=wb.Sheets[wb.SheetNames[0]];
     return fromMatrix(window.XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}))}
   async function readDocx(file){
-    await load(JSZIP_URL);
+    await load(JSZIP_LIB);
     const zip=await window.JSZip.loadAsync(await file.arrayBuffer());
     const xml=await zip.file('word/document.xml').async('string');
     const doc=new DOMParser().parseFromString(xml,'application/xml');
