@@ -250,6 +250,31 @@ test('двойное нажатие «отметить согласие» — о
   assert.equal(n, 1);
 });
 
+test('обращения: куратор видит свои, «решено» и обратно; чужой куратор — 404', opts, async () => {
+  const st = await addStudent({ name: 'Студент Помощь' });
+  const sql = db();
+  const [{ id: helpId }] = await sql<{ id: string }[]>`
+    insert into help_requests (user_id, group_id, text) values (${st.id}, ${groupId}, 'Не понимаю шаг 2') returning id`;
+  await sql`insert into help_requests (user_id, group_id, text) values (${st.id}, ${groupId}, 'Ошибка в ФИО: Студент Помощников')`;
+  const list = await call('GET', `/api/curator/help?group_id=${groupId}`, curatorTg);
+  assert.equal(list.status, 200);
+  const mine = list.body.requests.filter((h: any) => h.student_id === st.id);
+  assert.deepEqual(mine.map((h: any) => [h.kind, h.text]).sort(), [['help', 'Не понимаю шаг 2'], ['name_error', 'Студент Помощников']]);
+  assert.equal(mine[0].full_name, 'Студент Помощь');
+  assert.equal((await call('GET', `/api/curator/help?group_id=${groupId}`, strangerTg)).status, 404);
+  assert.equal((await call('PATCH', `/api/curator/help/${helpId}`, strangerTg, { body: { status: 'resolved' } })).status, 404);
+  assert.equal((await call('PATCH', `/api/curator/help/${helpId}`, curatorTg, { body: { status: 'done' } })).status, 400);
+  const ok = await call('PATCH', `/api/curator/help/${helpId}`, curatorTg, { body: { status: 'resolved' } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.request.status, 'resolved');
+  const open = await call('GET', `/api/curator/help?group_id=${groupId}`, curatorTg);
+  assert.ok(!open.body.requests.some((h: any) => h.id === helpId));
+  const all = await call('GET', `/api/curator/help?group_id=${groupId}&status=all`, curatorTg);
+  assert.ok(all.body.requests.some((h: any) => h.id === helpId && h.status === 'resolved'));
+  const back = await call('PATCH', `/api/curator/help/${helpId}`, adminTg, { body: { status: 'new' } });
+  assert.equal(back.body.request.resolved_at, null);
+});
+
 test('неизвестный путь и метод', opts, async () => {
   assert.equal((await call('GET', '/api/curator/students/not-a-uuid/invite', curatorTg)).status, 405);
   assert.equal((await call('POST', '/api/curator/students/not-a-uuid/invite', curatorTg)).status, 404);

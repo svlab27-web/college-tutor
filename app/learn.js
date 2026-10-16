@@ -225,9 +225,9 @@ html[data-theme=dark] .lv-hints p{background:#1c2721}.lv-done{color:#39784a;font
   async function sendHelp(btn){
     const ta=root.querySelector('[data-help]');const text=(ta&&ta.value||'').trim();if(!text){ta&&ta.focus();return}
     const isName=S.helpOpen==='__name';const s=S.lesson&&S.lesson.steps[S.idx];
-    const full=isName?text:(S.lesson?`«${S.lesson.title}», шаг «${s.title}»: ${text}`:text);
+    const full=isName||!s?text:`Шаг «${s.title}»: ${text}`; // урок куратор видит отдельно (lesson_id)
     btn.disabled=true;
-    const r=await api('/api/help',{method:'POST',body:JSON.stringify({kind:isName?'name_error':'help',text:full.slice(0,1000),lesson_id:S.lesson?S.lesson.id:undefined})}).catch(()=>null);
+    const r=await api('/api/help',{method:'POST',body:JSON.stringify({kind:isName?'name_error':'help',text:full.slice(0,1000),lesson_id:!isName&&S.lesson?S.lesson.id:undefined})}).catch(()=>null);
     btn.disabled=false;
     if(!r){say(T.fail);return}
     if(!r.ok){say(r.j.message||T.fail);return}

@@ -98,7 +98,7 @@ Object.assign(T,{ru:{
   cTitle:'Согласие родителя',cSub:n=>`Студент: ${n}. Родитель подписывает бланк в колледже — здесь только отметка.`,cParent:'ФИО родителя (законного представителя)',cRef:'Где лежит бланк',cRefPh:'Например, личное дело № 12',cCheck:'Бланк подписан родителем и хранится в колледже',cNote:'Сканы и фото бланка в сервис не загружаем.',save:'Сохранить',cSaved:'Согласие отмечено — прогресс студента теперь сохраняется.',cNeed:'Укажите, где лежит бланк, и подтвердите галочкой.',
   eTitle:'Данные студента',eName:'ФИО',eBirth:'Дата рождения',eSaved:'Данные исправлены.',
   addTitle:'Добавить студента',add:'Добавить',added:'Студент добавлен — личная ссылка готова.',noRoster:'В группе пока нет студентов — загрузите список или добавьте вручную.',
-  live:'Настоящие данные — из базы колледжа',helpOpen:n=>`Просит помощи: ${n} ${plural(n,['обращение','обращения','обращений'])} (текст — скоро во вкладке «Обращения»)`,linkedTag:'Вошёл в приложение',yearBorn:y=>`${y} г. р.`,unlink:'Отвязать Telegram',unlinkTitle:'Отвязать Telegram?',unlinkSub:n=>`${n}: если по ссылке вошёл не сам студент. Согласие на обработку данных отзывается, прогресс остаётся. Затем выдайте новую ссылку.`,unlinkDone:'Telegram отвязан. Выдайте студенту новую ссылку.',noLink:'Ссылки нет — выдайте новую',errGeneric:'Не получилось. Попробуйте ещё раз.',needParent:'Укажите ФИО родителя и где лежит бланк, подтвердите галочкой.',noGroups:'Вас пока не добавили ни в одну группу. Обратитесь к администратору колледжа.',listSoon:'Загрузка списка файлом — скоро. Пока добавляйте студентов по одному.',loading:'Загружаю…',
+  live:'Настоящие данные — из базы колледжа',helpOpen:n=>`Просит помощи: ${n} — см. «Обращения»`,linkedTag:'Вошёл в приложение',yearBorn:y=>`${y} г. р.`,unlink:'Отвязать Telegram',unlinkTitle:'Отвязать Telegram?',unlinkSub:n=>`${n}: если по ссылке вошёл не сам студент. Согласие на обработку данных отзывается, прогресс остаётся. Затем выдайте новую ссылку.`,unlinkDone:'Telegram отвязан. Выдайте студенту новую ссылку.',noLink:'Ссылки нет — выдайте новую',errGeneric:'Не получилось. Попробуйте ещё раз.',needParent:'Укажите ФИО родителя и где лежит бланк, подтвердите галочкой.',noGroups:'Вас пока не добавили ни в одну группу. Обратитесь к администратору колледжа.',listSoon:'Загрузка списка файлом — скоро. Пока добавляйте студентов по одному.',loading:'Загружаю…',
   impTitle:'Список группы',impPaste:'Вставить списком',impFile:'Загрузить файл',impPasteHint:'По одному студенту в строке: ФИО и дата рождения (или год). Можно скопировать столбцы прямо из Excel.',impPh:'Иванова Анна Сергеевна 05.03.2009\nСейткалиев Әлихан 2006\n…',impParse:'Разобрать',impDrop:'Перетащите файл сюда или нажмите, чтобы выбрать',impFormats:'Excel (.xlsx, .xls), CSV, .txt или Word (.docx) с таблицей. Первая строка может быть заголовком: «ФИО», «Дата рождения».',impReading:'Читаю файл…',impEmpty:'Не нашла в списке ни одного студента. Проверьте формат.',impCheck:'Проверьте и при необходимости исправьте',impName:'ФИО',impBirth:'Дата или год рождения',impBirthPh:'дд.мм.гггг или год',impAddRow:'+ Строка',impBack:'← Назад',impSave:n=>`Добавить ${n} ${plural(n,['студента','студента','студентов'])}`,impOk:'Готово',impErrName:'ФИО: фамилия и имя',impErrBirth:'Нужна дата или год',impDupe:'Повтор',impExists:'Уже в группе',impDone:n=>`Добавлено: ${n}. У каждого — личная ссылка.`,dupTitle:'Такой студент уже есть',dupYes:'Добавить тёзку',impFixed:n=>`Исправьте строки с ошибками: ${n}`
 },kk:{
   tabRoster:'Студенттер',
@@ -118,7 +118,7 @@ Object.assign(T,{ru:{
   cTitle:'Ата-ана келісімі',cSub:n=>`Студент: ${n}. Ата-ана бланкке колледжде қол қояды — мұнда тек белгі.`,cParent:'Ата-ананың (заңды өкілдің) аты-жөні',cRef:'Бланк қайда сақталады',cRefPh:'Мысалы, жеке іс № 12',cCheck:'Бланкке ата-ана қол қойды және ол колледжде сақталады',cNote:'Бланктің сканы мен фотосын сервиске жүктемейміз.',save:'Сақтау',cSaved:'Келісім белгіленді — студенттің прогресі енді сақталады.',cNeed:'Бланк қайда екенін көрсетіп, белгімен растаңыз.',
   eTitle:'Студент деректері',eName:'Аты-жөні',eBirth:'Туған күні',eSaved:'Деректер түзетілді.',
   addTitle:'Студент қосу',add:'Қосу',added:'Студент қосылды — жеке сілтеме дайын.',noRoster:'Топта әзірге студент жоқ — тізімді жүктеңіз немесе қолмен қосыңыз.',
-  live:'Нақты деректер — колледж базасынан',helpOpen:n=>`Көмек сұрайды: ${n} өтініш (мәтіні — жақында «Өтініштер» бөлімінде)`,linkedTag:'Қосымшаға кірді',yearBorn:y=>`${y} ж. т.`,unlink:'Telegram-ды ажырату',unlinkTitle:'Telegram-ды ажырату керек пе?',unlinkSub:n=>`${n}: егер сілтеме арқылы студенттің өзі кірмесе. Деректерді өңдеуге келісім кері қайтарылады, прогресс сақталады. Содан кейін жаңа сілтеме беріңіз.`,unlinkDone:'Telegram ажыратылды. Студентке жаңа сілтеме беріңіз.',noLink:'Сілтеме жоқ — жаңасын беріңіз',errGeneric:'Болмады. Қайтадан көріңіз.',needParent:'Ата-ананың аты-жөнін және бланк қайда екенін көрсетіп, белгімен растаңыз.',noGroups:'Сізді әзірге ешбір топқа қоспаған. Колледж әкімшісіне жүгініңіз.',listSoon:'Тізімді файлмен жүктеу — жақында. Әзірге студенттерді бір-бірлеп қосыңыз.',loading:'Жүктеп жатырмын…',
+  live:'Нақты деректер — колледж базасынан',helpOpen:n=>`Көмек сұрайды: ${n} — «Өтініштер» бөлімін қараңыз`,linkedTag:'Қосымшаға кірді',yearBorn:y=>`${y} ж. т.`,unlink:'Telegram-ды ажырату',unlinkTitle:'Telegram-ды ажырату керек пе?',unlinkSub:n=>`${n}: егер сілтеме арқылы студенттің өзі кірмесе. Деректерді өңдеуге келісім кері қайтарылады, прогресс сақталады. Содан кейін жаңа сілтеме беріңіз.`,unlinkDone:'Telegram ажыратылды. Студентке жаңа сілтеме беріңіз.',noLink:'Сілтеме жоқ — жаңасын беріңіз',errGeneric:'Болмады. Қайтадан көріңіз.',needParent:'Ата-ананың аты-жөнін және бланк қайда екенін көрсетіп, белгімен растаңыз.',noGroups:'Сізді әзірге ешбір топқа қоспаған. Колледж әкімшісіне жүгініңіз.',listSoon:'Тізімді файлмен жүктеу — жақында. Әзірге студенттерді бір-бірлеп қосыңыз.',loading:'Жүктеп жатырмын…',
   impTitle:'Топ тізімі',impPaste:'Тізіммен қою',impFile:'Файл жүктеу',impPasteHint:'Әр жолда бір студент: аты-жөні және туған күні (немесе жылы). Excel-ден бағандарды тікелей көшіруге болады.',impPh:'Иванова Анна Сергеевна 05.03.2009\nСейткалиев Әлихан 2006\n…',impParse:'Талдау',impDrop:'Файлды осында сүйреңіз немесе таңдау үшін басыңыз',impFormats:'Excel (.xlsx, .xls), CSV, .txt немесе кестесі бар Word (.docx). Бірінші жол тақырып болуы мүмкін: «Аты-жөні», «Туған күні».',impReading:'Файлды оқып жатырмын…',impEmpty:'Тізімнен бірде-бір студент табылмады. Форматты тексеріңіз.',impCheck:'Тексеріп, қажет болса түзетіңіз',impName:'Аты-жөні',impBirth:'Туған күні немесе жылы',impBirthPh:'кк.аа.жжжж немесе жыл',impAddRow:'+ Жол',impBack:'← Артқа',impSave:n=>`${n} студент қосу`,impOk:'Дұрыс',impErrName:'Тегі мен аты',impErrBirth:'Күні немесе жылы керек',impDupe:'Қайталанады',impExists:'Топта бар',impDone:n=>`Қосылды: ${n}. Әрқайсысының жеке сілтемесі бар.`,dupTitle:'Мұндай студент бар',dupYes:'Аттасын қосу',impFixed:n=>`Қатесі бар жолдарды түзетіңіз: ${n}`
 }}[lang]);
 T.tabs=Object.assign({groups:T.tabs.groups,roster:T.tabRoster},T.tabs);
@@ -192,11 +192,11 @@ function modal(html){const m=document.getElementById('modal');m.innerHTML=`<sect
 function closeModal(){const m=document.getElementById('modal');m.classList.add('hidden');m.innerHTML=''}
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal'||e.target.closest('[data-close]'))closeModal()});
 
-function renderTabs(){const open=S.help.filter(h=>!h.done).length;
+function renderTabs(){const H=LIVE&&LIVE.help&&LIVE.help[LIVE.gid];const open=LIVE?(Array.isArray(H)?H.filter(h=>h.status==='new').length:0):S.help.filter(h=>!h.done).length;
   document.getElementById('tabs').innerHTML=Object.entries(T.tabs).map(([k,v])=>`<button type="button" data-tab="${k}" class="${k===tab?'active':''}">${v}${k==='help'&&open?`<span class="count">${open}</span>`:''}</button>`).join('')}
-document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){tab=b.dataset.tab;if(tab==='progress'&&LIVE&&LIVE.gid&&LIVE.pr[LIVE.gid]!=='loading')delete LIVE.pr[LIVE.gid];render();window.scrollTo({top:0})}});
+document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){tab=b.dataset.tab;if(tab==='progress'&&LIVE&&LIVE.gid&&LIVE.pr[LIVE.gid]!=='loading')delete LIVE.pr[LIVE.gid];if(tab==='help'&&LIVE&&LIVE.gid&&LIVE.help[LIVE.gid]!=='loading')delete LIVE.help[LIVE.gid];render();window.scrollTo({top:0})}});
 function groupSelect(){return `<select class="i" id="grp" aria-label="${T.group}">${S.groups.map(g=>`<option value="${g.id}" ${g.id===cur?'selected':''}>${esc(g.name)} · ${T.subjects[g.subject]}</option>`).join('')}</select>`}
-function render(){renderTabs();document.getElementById('view').innerHTML=({groups,roster,progress,plan,tasks,help})[tab]()+(LIVE&&(tab==='roster'||tab==='progress')?'':`<p class="note">${T.demoNote}</p>`)}
+function render(){renderTabs();document.getElementById('view').innerHTML=({groups,roster,progress,plan,tasks,help})[tab]()+(LIVE&&(tab==='roster'||tab==='progress'||tab==='help')?'':`<p class="note">${T.demoNote}</p>`)}
 
 // ── Экраны ──────────────────────────────────────────────────
 function groups(){const till=g=>fmtDate(g.created+g.days*864e5);
@@ -249,7 +249,7 @@ function tasks(){const approved=g=>PLAN[g.subject]?S.plan[g.subject].map((s,i)=>
     <div><label class="f" for="t-date">${T.deadline}</label><input class="i" type="date" id="t-date" value="${addDays(7)}" min="${addDays(0)}"></div>
     <button class="btn lime" data-act="assign" ${approved(g).length?'':'disabled'}>${T.assign}</button></div></div>`}
 
-function help(){const open=S.help.filter(h=>!h.done),done=S.help.filter(h=>h.done);
+function help(){if(LIVE)return liveHelp();const open=S.help.filter(h=>!h.done),done=S.help.filter(h=>h.done);
   const card=h=>{const gr=S.groups.find(x=>x.id===h.group)||{name:'',subject:'python'};const sk=(SKILLS[gr.subject]||SKILLS.python)[lang];
     return `<div class="card" style="${h.done?'opacity:.6':''}"><div class="row"><div class="grow"><b>${esc(h.student)}</b> <span class="muted">· ${esc(gr.name)} · ${T.ago(h.h)}</span><div class="muted">${esc(topicName(gr.subject,h.topic))} · ${esc(sk[h.step])}</div></div>${h.done?`<span class="tag t-ok">${T.resolved}</span>`:''}</div><p style="margin:10px 0">«${esc(h.text[lang])}»</p>${h.done?'':`<div class="row"><button class="btn primary" data-act="reply">${T.reply}</button><button class="btn secondary" data-act="resolve" data-h="${h.id}">${T.resolve}</button></div>`}</div>`};
   return `<h1>${T.helpTitle}</h1><p class="sub">${T.helpSub}</p>${open.length?open.map(card).join(''):`<div class="card muted">${T.noHelp}</div>`}${done.map(card).join('')}`}
@@ -280,9 +280,34 @@ const fromApi=x=>({id:x.id,name:x.full_name||'—',birth:x.birth_date,year:x.bir
   code:x.invite&&!x.invite.expired?x.invite.token.replace(/^i_/,''):null,used:x.linked?0:null,err:x.name_errors>0,help:x.open_help||0,live:true});
 function loadLive(){return api('GET','/curator/students?group_id='+encodeURIComponent(LIVE.gid)).then(r=>{LIVE.st[LIVE.gid]=r.students.map(fromApi)})}
 function liveDo(p,msg){return p.then(r=>{const x=r.student;if(x){const L=LIVE.st[LIVE.gid],i=L.findIndex(s=>s.id===x.id),v=fromApi(x);if(i<0)L.push(v);else L[i]=v}closeModal();render();if(msg)toast(msg);return r}).catch(e=>toast(e.message||T.errGeneric))}
-if(inTg){api('GET','/curator/groups').then(r=>{LIVE={groups:r.groups||[],gid:(r.groups&&r.groups[0]||{}).id,st:{},pr:{}};
+if(inTg){api('GET','/curator/groups').then(r=>{LIVE={groups:r.groups||[],gid:(r.groups&&r.groups[0]||{}).id,st:{},pr:{},help:{}};if(LIVE.gid)loadHelp(LIVE.gid); // счётчик на вкладке
   const badge=document.querySelector('.demo-badge');if(badge)badge.hidden=true; // данные настоящие — не «Демо»
   if(LIVE.gid)return loadLive().then(()=>{tab='roster';render()});tab='roster';render()}).catch(()=>{})}
+// ── Обращения на настоящих данных (GET/PATCH /api/curator/help) ──
+const TH={ru:{nameErr:'Ошибка в ФИО',help:'Нужна помощь',lesson:'Урок',done:'Решено',undo:'Вернуть',showAll:'Показать решённые',hideAll:'Скрыть решённые',
+  sub:'Студенты нажали «Нужна помощь» в уроке или сообщили об ошибке в ФИО. Ошибку в ФИО исправьте во вкладке «Студенты» — обращение закроется само.',
+  write:'Написать в Telegram — скоро; пока ответьте студенту лично или на паре.'},
+ kk:{nameErr:'Аты-жөндегі қате',help:'Көмек керек',lesson:'Сабақ',done:'Шешілді',undo:'Қайтару',showAll:'Шешілгендерді көрсету',hideAll:'Шешілгендерді жасыру',
+  sub:'Студенттер сабақта «Көмек керек» батырмасын басты немесе аты-жөндегі қате туралы хабарлады. Аты-жөндегі қатені «Студенттер» бөлімінде түзетіңіз — өтініш өзі жабылады.',
+  write:'Telegram-ға жазу — жақында; әзірге студентке жеке немесе сабақта жауап беріңіз.'}}[lang];
+let HELP_ALL=false;
+function loadHelp(gid){LIVE.help[gid]='loading';api('GET','/curator/help?group_id='+encodeURIComponent(gid)+'&status=all')
+  .then(r=>{LIVE.help[gid]=r.requests||[];if(LIVE.gid===gid)render()}).catch(e=>{LIVE.help[gid]=null;if(tab==='help')toast(e.message||T.errGeneric)})}
+function liveHelp(){
+  if(!LIVE.gid)return `<h1>${T.helpTitle}</h1><div class="card muted">${T.noGroups}</div>`;
+  const sel=`<select class="i" id="lgrp" aria-label="${T.group}">${LIVE.groups.map(x=>`<option value="${x.id}" ${x.id===LIVE.gid?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`;
+  const head=`<h1>${T.helpTitle}</h1><p class="sub">${TH.sub}</p><div class="row" style="margin-bottom:10px"><div class="grow">${sel}</div></div><p><span class="tag t-ok">● ${T.live}</span></p>`;
+  const H=LIVE.help[LIVE.gid];
+  if(H===undefined)loadHelp(LIVE.gid);
+  if(!Array.isArray(H))return head+`<div class="card muted">${TP.loading}</div>`;
+  const ago=t=>T.ago(Math.max(0,Math.round((Date.now()-Date.parse(t))/36e5)));
+  const card=h=>`<div class="card" style="${h.status==='resolved'?'opacity:.6':''}"><div class="row"><div class="grow"><b>${esc(h.full_name||'—')}</b> <span class="muted">· ${ago(h.created_at)}</span>
+    <div class="muted">${h.kind==='name_error'?`⚠ ${TH.nameErr}`:`🙋 ${TH.help}`}${h.lesson_title?` · ${TH.lesson}: ${esc(h.lesson_title)}`:''}</div></div>${h.status==='resolved'?`<span class="tag t-ok">${TH.done}</span>`:''}</div>
+    <p style="margin:10px 0;white-space:pre-wrap">«${esc(h.text)}»</p><div class="row">${h.status==='new'?`<button class="btn primary" data-act="lhelp" data-h="${esc(h.id)}" data-st="resolved">${TH.done}</button>`:`<button class="btn plain" data-act="lhelp" data-h="${esc(h.id)}" data-st="new">${TH.undo}</button>`}</div></div>`;
+  const open=H.filter(h=>h.status==='new'),done=H.filter(h=>h.status!=='new');
+  return head+(open.length?open.map(card).join(''):`<div class="card muted">${T.noHelp}</div>`)+`<p class="muted">${TH.write}</p>`+
+    (done.length?`<button class="btn plain" data-act="lhelpall">${HELP_ALL?TH.hideAll:TH.showAll} (${done.length})</button>${HELP_ALL?done.map(card).join(''):''}`:'')}
+
 // ── Прогресс группы на настоящих данных (GET /api/curator/progress, docs/api.md п. 2) ──
 const TP={ru:{started:'начали уроки',lessonsDone:'уроков пройдено',stuck:'застряли',students:'студентов',
   stuckTitle:'Кто застрял',stuckSub:'Урок не закончен, а попыток или подсказок уже много. Стоит написать или подойти на паре.',noStuck:'Никто не застрял — все движутся.',
@@ -405,7 +430,7 @@ function showSeq(){const list=curRoster().filter(s=>s.used===null&&s.code);
 // ── Действия ────────────────────────────────────────────────
 document.getElementById('view').addEventListener('change',e=>{
   if(e.target.id==='grp'){cur=e.target.value;render()}
-  if(e.target.id==='lgrp'){LIVE.gid=e.target.value;loadLive().then(render).catch(err=>toast(err.message))}
+  if(e.target.id==='lgrp'){LIVE.gid=e.target.value;if(LIVE.help[LIVE.gid]===undefined)loadHelp(LIVE.gid);loadLive().then(render).catch(err=>toast(err.message))}
   if(e.target.id==='roster-file'&&e.target.files[0])toast(LIVE?T.listSoon:T.listUploaded(e.target.files[0].name));
   if(e.target.id==='ktp'&&e.target.files[0]){S.uploaded=e.target.files[0].name;save();render();toast(T.uploaded(S.uploaded,8))}
 });
@@ -425,6 +450,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const l=document.createElement('a');l.href=url;l.download=`${gr.name}-progress.csv`;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
   if(a==='write'||a==='reply')toast(T.replyMsg);
   if(a==='resolve'){const h=S.help.find(x=>x.id===+b.dataset.h);if(h){h.done=true;save();render()}}
+  if(a==='lhelpall'){HELP_ALL=!HELP_ALL;render()}
+  if(a==='lhelp'){b.disabled=true;api('PATCH','/curator/help/'+encodeURIComponent(b.dataset.h),{status:b.dataset.st})
+    .then(r=>{const L=LIVE.help[LIVE.gid];const h=Array.isArray(L)&&L.find(x=>x.id===b.dataset.h);if(h){h.status=r.request.status;h.resolved_at=r.request.resolved_at}render()})
+    .catch(e=>{b.disabled=false;toast(e.message||T.errGeneric)})}
   if(a==='draft')modal(draftHtml(b.dataset.s,+b.dataset.i));
   if(a==='gen'){const s=b.dataset.s,i=+b.dataset.i;S.plan[s][i]='gen';render();setTimeout(()=>{S.plan[s][i]='draft';save();if(tab==='plan')render();toast(T.genDone)},1600)}
   if(a==='approve'){S.plan[b.dataset.s][+b.dataset.i]='approved';save();closeModal();render();toast(T.approvedMsg)}
