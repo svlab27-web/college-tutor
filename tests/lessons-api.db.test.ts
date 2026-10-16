@@ -175,7 +175,7 @@ test('18+ с согласием: попытки и прогресс пишутс
 
   const list = await call('GET', '/api/lessons', s.tg);
   const py = list.body.lessons.find((l: any) => l.id === pyId);
-  assert.deepEqual(py.progress, { completed_steps: 1, current_step: 's2', completed_at: null });
+  assert.deepEqual(py.progress, { completed_steps: 1, current_step: 's2', completed_at: null, hints_used: 2, first_try: null, medal: null });
 });
 
 test('весь урок: самостоятельная своего варианта с первой попытки → completed_at', opts, async () => {
@@ -190,6 +190,43 @@ test('весь урок: самостоятельная своего вариа�
 
   const got = await call('GET', `/api/lessons/${mathId}`, s.tg);
   assert.equal(got.body.progress.completed_steps, 4);
+});
+
+test('значок и серия: всё с первой попытки без подсказок — золото; с подсказкой — серебро; серия 1, сегодня', opts, async () => {
+  const gold = await student();
+  for (const st of stepsOf(math)) await answer(gold.tg, mathId, st.id, rightAnswer(st, gold.id, mathId));
+  const lg = await call('GET', '/api/lessons', gold.tg);
+  const pg = lg.body.lessons.find((l: any) => l.id === mathId).progress;
+  assert.equal(pg.medal, 'gold');
+  assert.equal(pg.hints_used, 0);
+  assert.equal(pg.first_try, true);
+  assert.deepEqual(lg.body.stats, { streak_days: 1, active_today: true });
+
+  const silver = await student();
+  const steps = stepsOf(math);
+  for (const st of steps) {
+    await answer(silver.tg, mathId, st.id, rightAnswer(st, silver.id, mathId), { hints_used: st.independent ? 0 : 2 });
+  }
+  const one = await call('GET', `/api/lessons/${mathId}`, silver.tg);
+  assert.equal(one.body.progress.medal, 'silver');
+  assert.equal(one.body.progress.hints_used, 2 * steps.filter((x) => !x.independent).length);
+
+  const fresh = await student();
+  const lf = await call('GET', '/api/lessons', fresh.tg);
+  assert.deepEqual(lf.body.stats, { streak_days: 0, active_today: false });
+  assert.equal(lf.body.lessons.find((l: any) => l.id === mathId).progress, null);
+});
+
+test('серия по датам Казахстана: вчера и сегодня — 2 дня; демо — без серии', opts, async () => {
+  const s = await student();
+  await answer(s.tg, pyId, 's1', 0);
+  // одна попытка «вчера» по Алматы
+  await db()`update attempts set created_at = now() - interval '1 day' where id = (select id from attempts where user_id = ${s.id} limit 1)`;
+  await answer(s.tg, pyId, 's2', 1);
+  const l = await call('GET', '/api/lessons', s.tg);
+  assert.deepEqual(l.body.stats, { streak_days: 2, active_today: true });
+  const demo = await call('GET', '/api/lessons', ++nextTg);
+  assert.equal(demo.body.stats, null);
 });
 
 test('самостоятельная: ответ чужого варианта не засчитывается, first_try = false', opts, async () => {

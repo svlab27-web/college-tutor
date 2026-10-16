@@ -9,7 +9,11 @@ import {
   BadAnswer,
   BrowserCheck,
   checkAnswer,
+  kzDate,
+  medalOf,
   parseNumber,
+  publicStep,
+  streakOf,
   parseNumbers,
   publicLesson,
   stepsOf,
@@ -181,4 +185,31 @@ test('прогресс: пройденные по порядку урока, т�
   assert.deepEqual(summarize(all, new Set(['s2', 's1'])), { completed: ['s1', 's2'], current: 's3' });
   assert.deepEqual(summarize(all, new Set(['s1', 's3'])), { completed: ['s1', 's3'], current: 's2' });
   assert.deepEqual(summarize(all, new Set(['s1', 's2', 's3', 's4'])).current, null);
+});
+
+test('значок урока: золото — всё с первой попытки без подсказок; серебро — самостоятельная с первой; иначе бронза', () => {
+  const base = { completed: true, allFirstTry: true, hints: 0, independentFirstTry: true };
+  assert.equal(medalOf(base), 'gold');
+  assert.equal(medalOf({ ...base, hints: 1 }), 'silver');
+  assert.equal(medalOf({ ...base, allFirstTry: false }), 'silver');
+  assert.equal(medalOf({ ...base, allFirstTry: false, independentFirstTry: false }), 'bronze');
+  assert.equal(medalOf({ ...base, independentFirstTry: null, allFirstTry: false }), 'bronze');
+  assert.equal(medalOf({ ...base, completed: false }), null);
+});
+
+test('серия дней: сегодня или вчера + подряд назад; дата — по Казахстану (UTC+5)', () => {
+  assert.deepEqual(streakOf(['2026-10-16', '2026-10-15', '2026-10-14', '2026-10-12'], '2026-10-16'), { streak_days: 3, active_today: true });
+  assert.deepEqual(streakOf(['2026-10-15', '2026-10-14'], '2026-10-16'), { streak_days: 2, active_today: false }); // вчера — серия жива
+  assert.deepEqual(streakOf(['2026-10-14'], '2026-10-16'), { streak_days: 0, active_today: false }); // пропустил день
+  assert.deepEqual(streakOf([], '2026-10-16'), { streak_days: 0, active_today: false });
+  assert.deepEqual(streakOf(['2026-03-01', '2026-02-28'], '2026-03-01'), { streak_days: 2, active_today: true }); // через конец февраля
+  assert.equal(kzDate(new Date(Date.UTC(2026, 9, 13, 18, 59))), '2026-10-13'); // 23:59 в Алматы
+  assert.equal(kzDate(new Date(Date.UTC(2026, 9, 13, 19, 0))), '2026-10-14'); // 00:00 в Алматы
+});
+
+test('лаборатория уходит в браузер, но не в самостоятельной задаче', () => {
+  const lab = { kind: 'threshold', title: 't', label: 'l', threshold: 1000, then_factor: 0.9, presets: [999] };
+  const step = { id: 's3', title: 't', prompt: 'p', answer_type: 'choice', options: ['>', '>='], expected: 1, hints: [], lab } as any;
+  assert.deepEqual(publicStep(step, 0).lab, lab);
+  assert.equal(publicStep({ ...step, independent: true }, 0).lab, undefined);
 });
