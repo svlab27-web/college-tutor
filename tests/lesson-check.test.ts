@@ -65,7 +65,8 @@ test('choice: верно / частая ошибка / общий текст; в
 test('number с допуском и частой ошибкой; не число — подсказка; длинный ввод в базу обрезан', () => {
   const s3 = step(math, 's3');
   assert.equal(checkAnswer(s3, 0, '10', 'ru').correct, true);
-  assert.equal(checkAnswer(s3, 0, '10,005', 'ru').correct, true);
+  assert.equal(checkAnswer(s3, 0, '10,01', 'ru').correct, true);
+  assert.equal(checkAnswer(s3, 0, '10,005', 'ru').correct, false); // запятая + ровно 3 цифры — тысячи: 10 005
   assert.equal(checkAnswer(s3, 0, '10.5', 'ru').correct, false);
   assert.match(checkAnswer(s3, 0, '100', 'ru').feedback, /площадь/);
   const nan = checkAnswer(s3, 0, 'не знаю', 'ru');
