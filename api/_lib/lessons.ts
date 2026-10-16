@@ -59,7 +59,8 @@ function variantOf(step: Step, index: number): Obj | null {
 
 // ── Урок для браузера ────────────────────────────────────────
 const LESSON_FIELDS = ['subject', 'slug', 'title', 'skill', 'minutes', 'week', 'order', 'story', 'material'] as const;
-const STEP_FIELDS = ['id', 'title', 'prompt', 'code', 'answer_type', 'options', 'hints', 'simple', 'independent'] as const;
+// lab — лаборатория шага (content/lesson.schema.json): только входные значения и формула, ответов в ней нет
+const STEP_FIELDS = ['id', 'title', 'prompt', 'code', 'answer_type', 'options', 'hints', 'simple', 'independent', 'lab'] as const;
 const FREE_INPUT_FIELDS = ['prompt', 'answer_type', 'starter_code', 'tests', 'expected', 'label'] as const;
 
 function pick(source: Obj, fields: readonly string[]): Obj {
@@ -84,6 +85,7 @@ export function afterSolved(step: Step): Obj {
 
 export function publicStep(step: Step, variant: number, solved = false): Obj {
   const out = pick(step, STEP_FIELDS);
+  if (step.independent) delete out.lab; // в самостоятельной лаборатория подсказала бы ответ (lessons:check её и не пропустит)
   const v = variantOf(step, variant);
   if (v) {
     if (typeof v.prompt === 'string') out.prompt = v.prompt;
@@ -255,6 +257,38 @@ export interface LessonProgress {
   current_step: string | null;
   completed_at: string | null;
   independent: IndependentFacts;
+  hints_used: number; // подсказок за урок: по каждому шагу — максимум открытых при ответе
+  medal: Medal;
+}
+
+// ── Значок урока (геймификация) ──────────────────────────────
+// gold   — урок пройден, все шаги с первой попытки и без подсказок;
+// silver — пройден, самостоятельная решена с первой попытки;
+// bronze — пройден. Пока урок не пройден — null.
+export type Medal = 'gold' | 'silver' | 'bronze' | null;
+
+export function medalOf(f: { completed: boolean; allFirstTry: boolean; hints: number; independentFirstTry: boolean | null }): Medal {
+  if (!f.completed) return null;
+  if (f.allFirstTry && f.hints === 0) return 'gold';
+  if (f.independentFirstTry) return 'silver';
+  return 'bronze';
+}
+
+// ── Серия дней подряд (по дате Казахстана — kzDate из profile.ts) ──
+export { kzDate } from './profile';
+
+// days — даты занятий YYYY-MM-DD; серия жива, если занимался сегодня или вчера
+export function streakOf(days: string[], today: string): { streak_days: number; active_today: boolean } {
+  const set = new Set(days);
+  const prev = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const activeToday = set.has(today);
+  let d = activeToday ? today : prev(today);
+  let n = 0;
+  while (set.has(d)) {
+    n++;
+    d = prev(d);
+  }
+  return { streak_days: n, active_today: activeToday };
 }
 
 // Шаг пройден, когда на него есть верный ответ. Текущий — первый непройденный по порядку урока.

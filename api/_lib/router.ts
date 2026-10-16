@@ -9,7 +9,9 @@ import { postConsent } from './routes/consent';
 import {
   deleteCuratorParental,
   getCuratorGroups,
+  getCuratorHelp,
   getCuratorStudents,
+  patchCuratorHelp,
   patchCuratorStudent,
   postCuratorInvite,
   postCuratorParental,
@@ -35,6 +37,7 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   '/api/curator/students': { GET: getCuratorStudents, POST: postCuratorStudent },
   '/api/curator/students/bulk': { POST: postCuratorStudentsBulk },
   '/api/curator/progress': { GET: getCuratorProgress },
+  '/api/curator/help': { GET: getCuratorHelp },
   '/api/lessons': { GET: getLessons },
   '/api/answer': { POST: postAnswer },
 };
@@ -46,6 +49,7 @@ const patterns: { re: RegExp; methods: Partial<Record<string, Handler>> }[] = [
   { re: /^\/api\/curator\/students\/[^/]+\/invite$/, methods: { POST: postCuratorInvite } },
   { re: /^\/api\/curator\/students\/[^/]+\/parental$/, methods: { POST: postCuratorParental, DELETE: deleteCuratorParental } },
   { re: /^\/api\/curator\/students\/[^/]+\/unlink$/, methods: { POST: postCuratorUnlink } },
+  { re: /^\/api\/curator\/help\/[^/]+$/, methods: { PATCH: patchCuratorHelp } },
 ];
 
 export async function route(req: Request): Promise<Response> {

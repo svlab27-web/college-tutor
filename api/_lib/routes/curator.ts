@@ -9,6 +9,8 @@
 // POST  /api/curator/students/:id/parental          — отметить согласие родителя { parent_name, document_ref, source? }
 // DELETE /api/curator/students/:id/parental         — снять отметку (ошиблись студентом)
 // POST  /api/curator/students/:id/unlink            — «отвязать Telegram», если ссылку перехватили (docs/api.md, п. 1)
+// GET   /api/curator/help?group_id=…&status=new|all  — обращения группы: «нужна помощь» и «ошибка в ФИО», новые сверху
+// PATCH /api/curator/help/:id                       — { status: 'resolved' | 'new' } — отметить «решено» / вернуть
 //
 // Дату рождения куратор видит — он её вносил. Студенту дата не отдаётся (me.ts).
 
@@ -338,4 +340,59 @@ export async function postCuratorUnlink(req: Request): Promise<Response> {
   console.info('curator unlink', { by: staff.id, student: id, group: groupId });
   const [student] = await loadStudents(groupId, id);
   return json(200, { ok: true, student });
+}
+
+// ── Обращения студентов (вкладка «Обращения»; студент пишет через POST /api/help) ──
+
+export async function getCuratorHelp(req: Request): Promise<Response> {
+  const identity = requireIdentity(req);
+  const sql = db();
+  const staff = await requireStaff(sql, identity.telegramUserId);
+  const params = new URL(req.url).searchParams;
+  const groupId = await requireGroup(sql, staff, params.get('group_id'));
+  const all = params.get('status') === 'all';
+  const rows = await sql<{
+    id: string; student_id: string; full_name: string | null; lesson_id: string | null; lesson_title: string | null;
+    text: string; status: string; created_at: Date; resolved_at: Date | null;
+  }[]>`
+    select h.id, h.user_id as student_id, u.full_name, h.lesson_id, l.title as lesson_title,
+           h.text, h.status, h.created_at, h.resolved_at
+      from help_requests h
+      join users u on u.id = h.user_id
+      left join lessons l on l.id = h.lesson_id
+     where h.group_id = ${groupId} and (${all} or h.status = 'new')
+     order by h.created_at desc
+     limit 200`;
+  return json(200, {
+    group_id: groupId,
+    requests: rows.map((h) => ({
+      ...h,
+      kind: h.text.startsWith(NAME_ERROR_PREFIX) ? 'name_error' : 'help',
+      text: h.text.startsWith(NAME_ERROR_PREFIX) ? h.text.slice(NAME_ERROR_PREFIX.length).trim() : h.text,
+    })),
+  });
+}
+
+export async function patchCuratorHelp(req: Request): Promise<Response> {
+  const identity = requireIdentity(req);
+  const id = new URL(req.url).pathname.split('/')[4] ?? '';
+  if (!UUID.test(id)) throw new HttpError(404, 'help_not_found', 'Обращение не найдено.');
+  const body = await readJson(req);
+  if (body.status !== 'resolved' && body.status !== 'new') {
+    throw new HttpError(400, 'bad_status', 'Статус: resolved или new.');
+  }
+  const sql = db();
+  const staff = await requireStaff(sql, identity.telegramUserId);
+  // Только обращения своих групп (у админа — любые)
+  const [row] = await sql<{ id: string; status: string; resolved_at: Date | null }[]>`
+    update help_requests h
+       set status = ${body.status as string},
+           resolved_at = case when ${body.status as string} = 'resolved' then coalesce(h.resolved_at, now()) end
+     where h.id = ${id}
+       and (${staff.role === 'admin'} or exists (
+             select 1 from group_members t
+              where t.group_id = h.group_id and t.user_id = ${staff.id} and t.role = 'teacher'))
+    returning h.id, h.status, h.resolved_at`;
+  if (!row) throw new HttpError(404, 'help_not_found', 'Обращение не найдено.');
+  return json(200, { request: row });
 }

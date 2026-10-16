@@ -16,8 +16,11 @@ import {
   BrowserCheck,
   checkAnswer,
   hiddenFeedback,
+  kzDate,
+  medalOf,
   publicLesson,
   stepsOf,
+  streakOf,
   summarize,
   variantIndex,
   type LessonProgress,
@@ -112,9 +115,10 @@ async function solvedSteps(sql: Sql, userId: string, lessonId: string): Promise<
 
 async function lessonProgress(sql: Sql, userId: string, lessonId: string, content: Obj): Promise<LessonProgress | null> {
   const steps = stepsOf(content);
-  const rows = await sql<{ step_id: string; solved: boolean; first_correct: boolean }[]>`
+  const rows = await sql<{ step_id: string; solved: boolean; first_correct: boolean; hints: number }[]>`
     select step_id, bool_or(is_correct) as solved,
-           (array_agg(is_correct order by created_at))[1] as first_correct
+           (array_agg(is_correct order by created_at))[1] as first_correct,
+           max(hints_used)::int as hints
       from attempts where user_id = ${userId} and lesson_id = ${lessonId}
      group by step_id`;
   if (!rows.length) return null;
@@ -132,6 +136,13 @@ async function lessonProgress(sql: Sql, userId: string, lessonId: string, conten
     current_step: current,
     completed_at: p?.completed_at ? new Date(p.completed_at).toISOString() : null,
     independent: { solved: Boolean(ir?.solved), first_try: ir ? Boolean(ir.first_correct) : null },
+    hints_used: rows.reduce((n, r) => n + (r.hints || 0), 0),
+    medal: medalOf({
+      completed: Boolean(p?.completed_at),
+      allFirstTry: steps.every((s) => rows.find((r) => r.step_id === s.id)?.first_correct === true),
+      hints: rows.reduce((n, r) => n + (r.hints || 0), 0),
+      independentFirstTry: ir ? Boolean(ir.first_correct) : null,
+    }),
   };
 }
 
@@ -141,14 +152,31 @@ export async function getLessons(req: Request): Promise<Response> {
   const lang = langOf(req);
   const rows = await loadLessons(sql, v, lang);
   type ProgressRow = { lesson_id: string; completed_steps: number; current_step: string | null; completed_at: Date | null };
+  type StepRow = { lesson_id: string; step_id: string; first_correct: boolean | null; hints: number; independent: boolean };
   let progress: ProgressRow[] = [];
+  let stepRows: StepRow[] = [];
+  let days: string[] = [];
   if (v.user) {
     progress = await sql<ProgressRow[]>`
       select lesson_id, completed_steps, current_step, completed_at from progress where user_id = ${v.user.id}`;
+    // По шагу: первая попытка верна? сколько подсказок? — для значка урока
+    stepRows = await sql<StepRow[]>`
+      select lesson_id, step_id, (array_agg(is_correct order by created_at))[1] as first_correct,
+             max(hints_used)::int as hints, bool_or(is_independent) as independent
+        from attempts where user_id = ${v.user.id}
+       group by lesson_id, step_id`;
+    // Дни занятий по дате Казахстана (UTC+5) — для серии; 120 дней хватает с запасом
+    days = (await sql<{ d: string }[]>`
+      select distinct to_char((created_at at time zone 'UTC') + interval '5 hours', 'YYYY-MM-DD') as d
+        from attempts where user_id = ${v.user.id} and created_at > now() - interval '120 days'`).map((r) => r.d);
   }
   const lessons = rows.map((row) => {
     const { content, language } = contentOf(row);
     const p = progress.find((x) => x.lesson_id === row.id);
+    const steps = stepsOf(content);
+    const sr = stepRows.filter((x) => x.lesson_id === row.id);
+    const hints = sr.reduce((n, x) => n + (x.hints || 0), 0);
+    const ind = sr.find((x) => x.independent);
     return {
       id: row.id,
       subject: row.subject_id,
@@ -166,11 +194,20 @@ export async function getLessons(req: Request): Promise<Response> {
             completed_steps: p.completed_steps,
             current_step: p.current_step,
             completed_at: p.completed_at ? new Date(p.completed_at).toISOString() : null,
+            hints_used: hints,
+            first_try: ind ? ind.first_correct === true : null,
+            medal: medalOf({
+              completed: Boolean(p.completed_at),
+              allFirstTry: steps.every((s) => sr.find((x) => x.step_id === s.id)?.first_correct === true),
+              hints,
+              independentFirstTry: ind ? ind.first_correct === true : null,
+            }),
           }
         : null,
     };
   });
-  return json(200, { can_save_progress: v.canSave, lessons });
+  const stats = v.user ? streakOf(days, kzDate(new Date())) : null;
+  return json(200, { can_save_progress: v.canSave, stats, lessons });
 }
 
 function lessonIdFrom(req: Request): string {

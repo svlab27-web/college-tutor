@@ -33,8 +33,14 @@ export interface ProfileStatus {
 }
 
 // Сегодняшняя дата в Казахстане — день рождения считаем по местному календарю
+// Казахстан с 1 марта 2024 — единый UTC+5 без летнего времени. Сдвиг фиксированный, а не Asia/Almaty:
+// старые базы часовых поясов (ICU в Node 20 — tz 2023c) ещё считают Алматы UTC+6
+export function kzDate(d: Date): string {
+  return new Date(d.getTime() + 5 * 3_600_000).toISOString().slice(0, 10);
+}
+
 export function todayInKazakhstan(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Almaty' }).format(now);
+  return kzDate(now);
 }
 
 export function isMinor(birth: Birth, today: string): boolean | null {

@@ -203,6 +203,8 @@
 | POST | `/api/curator/students/:id/parental` | Отметить согласие родителя `{ parent_name, document_ref, source: paper \| college_list }`; повторно — 409 |
 | DELETE | `/api/curator/students/:id/parental` | Снять отметку (ошиблись студентом) — `revoked_at` |
 | POST | `/api/curator/students/:id/unlink` | «Отвязать Telegram» — как описано в п. 1; в лог — кто кого отвязал, без Telegram ID |
+| GET | `/api/curator/help?group_id=&status=new\|all` | Обращения группы (`POST /api/help`): `id`, `student_id`, `full_name`, `lesson_id`, `lesson_title`, `kind` (`help` / `name_error`, префикс «Ошибка в ФИО:» срезан), `text`, `status`, `created_at`, `resolved_at`; новые сверху, до 200 |
+| PATCH | `/api/curator/help/:id` | `{ status: "resolved" \| "new" }` — «решено» / вернуть; только обращения своих групп (админ — любые), иначе 404. «Ошибка в ФИО» закрывается и сама, когда куратор исправил ФИО |
 
 Дату рождения куратор видит (он её вносил); студенту она не отдаётся. Дальше (часть 2): прогресс и «кто застрял», задания со сроком, ответы на обращения, КТП → черновики AI, выгрузка в Excel.
 
