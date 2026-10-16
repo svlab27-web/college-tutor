@@ -19,7 +19,9 @@ import {
 } from './routes/curator';
 import { health } from './routes/health';
 import { postHelp } from './routes/help';
+import { getLesson, getLessons, postAnswer } from './routes/lessons';
 import { getMe, postMe } from './routes/me';
+import { getCuratorProgress } from './routes/progress';
 
 type Handler = (req: Request) => Promise<Response>;
 
@@ -32,10 +34,14 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   '/api/curator/groups': { GET: getCuratorGroups },
   '/api/curator/students': { GET: getCuratorStudents, POST: postCuratorStudent },
   '/api/curator/students/bulk': { POST: postCuratorStudentsBulk },
+  '/api/curator/progress': { GET: getCuratorProgress },
+  '/api/lessons': { GET: getLessons },
+  '/api/answer': { POST: postAnswer },
 };
 
-// Пути с id студента: обработчик сам достаёт id из URL и проверяет доступ
+// Пути с id (студента, урока): обработчик сам достаёт id из URL и проверяет доступ
 const patterns: { re: RegExp; methods: Partial<Record<string, Handler>> }[] = [
+  { re: /^\/api\/lessons\/[^/]+$/, methods: { GET: getLesson } },
   { re: /^\/api\/curator\/students\/[^/]+$/, methods: { PATCH: patchCuratorStudent } },
   { re: /^\/api\/curator\/students\/[^/]+\/invite$/, methods: { POST: postCuratorInvite } },
   { re: /^\/api\/curator\/students\/[^/]+\/parental$/, methods: { POST: postCuratorParental, DELETE: deleteCuratorParental } },
