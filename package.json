@@ -11,7 +11,8 @@
     "start": "node dist/server/index.js",
     "test": "tsc && node --test \"dist/tests/**/*.test.js\"",
     "lessons:check": "tsc && node dist/scripts/sync-lessons.js --check",
-    "lessons:sync": "tsc && node dist/scripts/sync-lessons.js"
+    "lessons:sync": "tsc && node dist/scripts/sync-lessons.js",
+    "lessons:sql": "tsc && node dist/scripts/lessons-sql.js"
   },
   "dependencies": {
     "postgres": "^3.4.5"

@@ -227,6 +227,18 @@
 printf "Строка подключения: " && read -rs DATABASE_URL && echo && export DATABASE_URL && npm run lessons:sync; unset DATABASE_URL
 ```
 
+**Без строки подключения — через Supabase SQL Editor** (так загружены уроки 16.10). `DATABASE_URL` в Vercel помечена Sensitive — посмотреть её нельзя; сбрасывать пароль базы ради загрузки — риск уронить прод. Вместо этого:
+
+```bash
+npm run --silent lessons:sql > lessons.sql
+```
+
+```bash
+LANG=en_US.UTF-8 pbcopy < lessons.sql
+```
+
+→ Supabase → SQL Editor → New query → Cmd+V → Run. Затем проверка: `npm run --silent lessons:sql -- --verify > verify.sql`, тем же путём → ответ «всё совпадает: N из N». Копировать **только как UTF-8**: без `LANG` macOS вставит русский текст кракозябрами. SQL делает ровно то же, что `syncLessons` (тест `tests/lessons-sql.db.test.ts`).
+
 Уроки Python 01–08 утверждены (`approved`, Светлана Петухова, 16.10.2026) — после sync студенты их видят; урок математики — `review`, переводы — `draft` (на kk студент видит русский текст). Утверждать — только через файл: sync ставит `is_published` по `status` и снимет публикацию, поставленную в базе вручную. Автозапуск после merge (GitHub Action с секретом `DATABASE_URL`) — когда понадобится.
 
 ## 4. Безопасность — чек-лист ревью для каждого PR в `api/`
