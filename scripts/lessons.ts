@@ -258,7 +258,8 @@ export function loadContent(root: string): LoadResult {
 }
 
 // ── План семестра (КТП): content/plans/<slug>.json ────────────────────────────
-// Недели по порядку, у каждой — тема, часы, «знать», «уметь» и уроки сервиса (slug из content/<subject>/).
+// Недели по порядку, у каждой — тема, часы, «знать», «уметь», уроки сервиса (slug из content/<subject>/);
+// необязательно — practice (практическая работа), project (шаг сквозного проекта), review (какие прошлые недели повторяем).
 // Урок из плана должен существовать, а его week/order — совпадать с неделей и местом в плане:
 // по ним приложение показывает уроки в порядке КТП.
 
@@ -290,6 +291,10 @@ export function validatePlan(c: unknown, lessons: LessonPair[]): string[] {
     if (!(isNum(w.hours) && (w.hours as number) > 0)) errors.push(`${at}.hours: число > 0`);
     else hours += w.hours as number;
     for (const k of ['know', 'can']) if (!(Array.isArray(w[k]) && isStrArr(w[k]))) errors.push(`${at}.${k}: массив строк`);
+    for (const k of ['practice', 'project', 'control']) if (k in w && !isStr(w[k])) errors.push(`${at}.${k}: непустая строка`);
+    if ('review' in w && !(Array.isArray(w.review) && w.review.every((n) => Number.isInteger(n) && (n as number) >= 1 && (n as number) < (w.week as number)))) {
+      errors.push(`${at}.review: номера прошлых недель (повторяем пройденное)`);
+    }
     if (!(Array.isArray(w.lessons) && isStrArr(w.lessons))) return errors.push(`${at}.lessons: массив slug (может быть пустым)`);
     (w.lessons as string[]).forEach((slug, j) => {
       const l = bySlug.get(slug);

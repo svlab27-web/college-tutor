@@ -37,11 +37,13 @@ test('план: урока нет, week/order не совпадают, часы 
   weeks[0].lessons = ['03-peremennye-transportnaya-karta', '99-net-takogo']; // 02 выпал из плана, 03 сдвинулся на 1-е место
   weeks[1].hours = 5;
   weeks[2].week = 7;
+  weeks[4].review = [5];
   const e = validatePlan(plan, lessons).join('\n');
   assert.match(e, /урока python\/99-net-takogo нет в content/);
   assert.match(e, /у урока 03-peremennye-transportnaya-karta week\/order = 1\/2, а в плане 1\/1/);
   assert.match(e, /hours_total 72, а сумма часов по неделям 73/);
   assert.match(e, /weeks\[2\]\.week: ожидалась 3/);
+  assert.match(e, /weeks\[4\]\.review: номера прошлых недель/);
   assert.match(e, /урок 02-tablo-pervaya-programma с week = 1 не стоит ни в одной неделе плана/);
 });
 

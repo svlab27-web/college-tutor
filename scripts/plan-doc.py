@@ -12,15 +12,23 @@ w(f"# {plan['title']}\n")
 w("> Документ собран из `content/plans/python-1-semestr.json` и уроков `content/python/*.json` — правки вносим в JSON, документ пересобираем: `python3 scripts/plan-doc.py .` "
   "Статус: **на проверке у преподавателя** (`review`).\n")
 w(f"**Специальность:** {plan['specialty']}  \n**Курс / семестр:** {plan['course']} / {plan['semester']}  \n"
-  f"**Часов:** {plan['hours_total']} ({plan['hours_per_week']} в неделю)  \n**Итоговый контроль:** {plan['final_control']}\n")
+  f"**Часов:** {plan['hours_total']} ({plan['hours_per_week']} в неделю{', ' + str(plan['credits']) + ' кредита' if plan.get('credits') else ''})  \n**Итоговый контроль:** {plan['final_control']}\n")
 w(f"{plan['note']}\n")
+m = plan.get("method")
+if m:
+    w("## Как устроен курс\n")
+    for line in m["lines"]:
+        w(f"- {line}")
+    w(f"\n**Проект.** {m['project']}\n")
+    w(f"**Задачи.** {m['context']}\n")
 w("## 1. План семестра (КТП)\n")
-w("| Нед. | Тема | Часы | Студент знает | Студент умеет | Уроки в сервисе |")
-w("|---|---|---|---|---|---|")
+w("| Нед. | Тема | Часы | Студент знает | Студент умеет | Практическая работа | Проект | Повторяем недели | Уроки в сервисе |")
+w("|---|---|---|---|---|---|---|---|---|")
 for x in plan["weeks"]:
     les = "<br>".join(f"{L[s]['title']} (`{s}`)" for s in x["lessons"]) or "— (готовим по ходу семестра)"
     topic = x["topic"].replace(x["control"], f"**{x['control']}**") if x.get("control") else x["topic"]
-    w(f"| {x['week']} | {topic} | {x['hours']} | {'; '.join(x['know'])} | {'; '.join(x['can'])} | {les} |")
+    rev = ", ".join(map(str, x.get("review", []))) or "—"
+    w(f"| {x['week']} | {topic} | {x['hours']} | {'; '.join(x['know'])} | {'; '.join(x['can'])} | {x.get('practice', '—')} | {x.get('project', '—')} | {rev} | {les} |")
 w("")
 w("## 2. Уроки первого месяца — подробно\n")
 w("Каждый урок — 10–15 минут в Telegram: история → короткая теория → 3 шага с подсказками → самостоятельная задача без подсказок. "
