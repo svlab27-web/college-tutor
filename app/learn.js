@@ -27,7 +27,10 @@
     demoParent:'Демо — прогресс не сохраняется, пока куратор не отметит согласие родителя.',
     offline:'Нет связи с сервером — работает демо, прогресс не сохраняется.',
     empty:'Уроков пока нет — преподаватель ещё не опубликовал их.',subjects:{python:'Программирование',math:'Высшая математика'},
-    partsBad:'Неверная часть ответа отмечена.',saved:'Сохранено',notSaved:'Не сохраняется (демо)'
+    partsBad:'Неверная часть ответа отмечена.',saved:'Сохранено',notSaved:'Не сохраняется (демо)',
+    help:'🙋 Нужна помощь',helpTitle:'Напишите куратору, что непонятно',helpPh:'Например: не понимаю, почему 1000 не входит в условие',send:'Отправить',cancel:'Отмена',
+    helpSent:'Отправлено — куратор увидит ваше сообщение.',helpDemo:'Написать куратору можно после входа по личной ссылке и согласия.',
+    nameErr:'Ошибка в ФИО?',nameTitle:'Как правильно пишутся ваши фамилия, имя, отчество?',nameSent:'Отправлено — куратор исправит.'
   },kk:{
     brand:'Менің колледжім',all:'← Барлық сабақтар',week:n=>`${n}-апта`,extra:'Қосымша',min:'мин',
     start:'Бастау',cont:'Жалғастыру',done:'Өтілді ✓',again:'Қайталау',
@@ -46,7 +49,10 @@
     demoParent:'Демо — куратор ата-ана келісімін белгілегенше прогресс сақталмайды.',
     offline:'Сервермен байланыс жоқ — демо жұмыс істейді, прогресс сақталмайды.',
     empty:'Әзірге сабақ жоқ — оқытушы оларды әлі жарияламаған.',subjects:{python:'Бағдарламалау',math:'Жоғары математика'},
-    partsBad:'Жауаптың қате бөлігі белгіленді.',saved:'Сақталды',notSaved:'Сақталмайды (демо)'
+    partsBad:'Жауаптың қате бөлігі белгіленді.',saved:'Сақталды',notSaved:'Сақталмайды (демо)',
+    help:'🙋 Көмек керек',helpTitle:'Кураторға не түсініксіз екенін жазыңыз',helpPh:'Мысалы: 1000 неге шартқа кірмейтінін түсінбеймін',send:'Жіберу',cancel:'Болдырмау',
+    helpSent:'Жіберілді — куратор хабарламаңызды көреді.',helpDemo:'Кураторға жеке сілтеме арқылы кіріп, келісім бергеннен кейін жазуға болады.',
+    nameErr:'Аты-жөнде қате бар ма?',nameTitle:'Тегіңіз, атыңыз, әкеңіздің аты қалай дұрыс жазылады?',nameSent:'Жіберілді — куратор түзетеді.'
   }}[lang];
 
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -63,7 +69,7 @@
   wait.textContent='html.lv-wait .app{visibility:hidden}';document.head.appendChild(wait);html.classList.add('lv-wait');
   const showProto=()=>html.classList.remove('lv-wait');setTimeout(showProto,5000);
 
-  const S={me:null,canSave:false,list:[],subject:null,lesson:null,progress:null,idx:0,hints:{},showSimple:{},sel:{},result:{},reveal:{},solved:new Set(),firstTry:null};
+  const S={helpOpen:null,me:null,canSave:false,list:[],subject:null,lesson:null,progress:null,idx:0,hints:{},showSimple:{},sel:{},result:{},reveal:{},solved:new Set(),firstTry:null};
   let root;
 
   window.MeReady.then(async me=>{
@@ -97,7 +103,7 @@ html[data-theme=dark] .lv-bar{background:#2a3530}.lv-go{font-size:12px;font-weig
 html[data-theme=dark] .lv-hints p{background:#1c2721}.lv-done{color:#39784a;font-weight:700;font-size:13px}
 .lv-code textarea{width:100%;min-height:150px;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;border:1px solid var(--line);border-radius:10px;padding:12px;background:#1f302d;color:#dce9df;tab-size:4}
 .lv-tests{margin-top:10px;font-size:13px}.lv-tests div{padding:4px 0;border-bottom:1px solid var(--line)}.lv-tests code{font-size:12px}
-.lv-end{text-align:center;padding:28px 10px}.lv-end .badge{margin:0 auto 16px}`;
+.lv-small{font-size:12px;padding:6px 0}.lv-end{text-align:center;padding:28px 10px}.lv-end .badge{margin:0 auto 16px}`;
     document.head.appendChild(st);
     root=document.createElement('div');root.className='lv';document.body.insertBefore(root,document.body.firstChild);
     root.addEventListener('click',onClick);root.addEventListener('input',onInput);
@@ -111,8 +117,15 @@ html[data-theme=dark] .lv-hints p{background:#1c2721}.lv-done{color:#39784a;font
     const ini=name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
     let demo='';
     if(!S.canSave){const needs=me.needs||[];demo=!me.registered?T.demoGuest:needs.includes('consent')?T.demoConsent:needs.includes('parental_consent')?T.demoParent:T.demoGuest}
-    return `<header class="lv-top"><span class="lv-logo" aria-hidden="true">↗</span><span class="lv-brand">${T.brand}</span><span class="lv-who"><span>${esc(name)}</span><span class="avatar" aria-hidden="true">${esc(ini||'·')}</span></span></header>${demo?`<p class="lv-demo" role="status">${demo}</p>`:''}`;
+    const nameBtn=me.registered?`<button type="button" class="btn plain lv-small" data-act="nameerr">${T.nameErr}</button>`:'';
+    const nameForm=S.helpOpen==='__name'?helpForm(T.nameTitle,'',me.user&&me.user.full_name||''):'';
+    return `<header class="lv-top"><span class="lv-logo" aria-hidden="true">↗</span><span class="lv-brand">${T.brand}</span><span class="lv-who"><span>${esc(name)}</span><span class="avatar" aria-hidden="true">${esc(ini||'·')}</span></span></header>${nameBtn?`<div style="text-align:right">${nameBtn}</div>`:''}${nameForm}${demo?`<p class="lv-demo" role="status">${demo}</p>`:''}`;
   }
+
+  function helpForm(title,ph,value){
+    return `<div class="card" style="margin:10px 0"><b>${title}</b><textarea class="input" data-help maxlength="1000" placeholder="${esc(ph)}" style="width:100%;min-height:90px;margin-top:8px">${esc(value)}</textarea><div class="actions"><button type="button" class="btn primary" data-act="helpsend">${T.send}</button><button type="button" class="btn plain" data-act="helpclose">${T.cancel}</button></div></div>`;
+  }
+  const canHelp=()=>!!(S.me&&S.me.registered&&S.canSave);
 
   // ── Список уроков ─────────────────────────────────────────
   function list(){
@@ -171,7 +184,8 @@ html[data-theme=dark] .lv-hints p{background:#1c2721}.lv-done{color:#39784a;font
     const actions=`<div class="actions">${solved?`<span class="lv-done">${T.solved}</span><button type="button" class="btn primary" data-act="next">${last?T.finish:T.next}</button>`:
       `<button type="button" class="btn primary" data-act="check">${T.check}</button>${!s.independent&&hs.length?`<button type="button" class="btn secondary" data-act="hint" ${shown>=hs.length?'disabled':''}>${shown>=hs.length?T.noHints:T.hint(shown+1,hs.length)}</button>`:''}${s.simple&&!s.independent?`<button type="button" class="btn plain" data-act="simple">${T.simple}</button>`:''}${res&&res.correct===null?`<button type="button" class="btn plain" data-act="next">${last?T.finish:T.next}</button>`:''}`}</div>`;
     const rv=S.reveal[s.id]||(solved?{checks:s.checks,free_input:s.free_input}:null);
-    return head+body+hints+simple+fb+actions+(rv?revealHtml(s,rv):'');
+    const help=S.helpOpen===s.id?helpForm(T.helpTitle,T.helpPh,''):`<div style="margin-top:8px"><button type="button" class="btn plain lv-small" data-act="help">${T.help}</button></div>`;
+    return head+body+hints+simple+fb+actions+help+(rv?revealHtml(s,rv):'');
   }
 
   function revealHtml(s,rv){
@@ -197,11 +211,27 @@ html[data-theme=dark] .lv-hints p{background:#1c2721}.lv-done{color:#39784a;font
     const s=S.lesson&&S.lesson.steps[S.idx];
     if(b.dataset.ch!==undefined&&s){(S.sel[s.id]=S.sel[s.id]||{}).choice=+b.dataset.ch;keepInputs();lesson();return}
     const a=b.dataset.act;
-    if(a==='list'){reloadList();return}
+    if(a==='list'){S.helpOpen=null;reloadList();return}
+    if(a==='help'){if(!canHelp()){say(T.helpDemo);return}keepInputs();S.helpOpen=s.id;lesson();focusHelp();return}
+    if(a==='nameerr'){S.helpOpen=S.helpOpen==='__name'?null:'__name';S.lesson?(keepInputs(),lesson()):list();focusHelp();return}
+    if(a==='helpclose'){S.helpOpen=null;S.lesson?(keepInputs(),lesson()):list();return}
+    if(a==='helpsend'){sendHelp(b);return}
     if(a==='hint'){S.hints[s.id]=Math.min((S.hints[s.id]||0)+1,(s.hints||[]).length);keepInputs();lesson();return}
     if(a==='simple'){S.showSimple[s.id]=!S.showSimple[s.id];keepInputs();lesson();return}
     if(a==='next'){if(S.idx<S.lesson.steps.length-1){S.idx++;lesson()}else end();return}
     if(a==='check'){check(s,b);return}
+  }
+  function focusHelp(){const t=root.querySelector('[data-help]');if(t){t.focus();t.scrollIntoView({block:'center'})}}
+  async function sendHelp(btn){
+    const ta=root.querySelector('[data-help]');const text=(ta&&ta.value||'').trim();if(!text){ta&&ta.focus();return}
+    const isName=S.helpOpen==='__name';const s=S.lesson&&S.lesson.steps[S.idx];
+    const full=isName?text:(S.lesson?`«${S.lesson.title}», шаг «${s.title}»: ${text}`:text);
+    btn.disabled=true;
+    const r=await api('/api/help',{method:'POST',body:JSON.stringify({kind:isName?'name_error':'help',text:full.slice(0,1000),lesson_id:S.lesson?S.lesson.id:undefined})}).catch(()=>null);
+    btn.disabled=false;
+    if(!r){say(T.fail);return}
+    if(!r.ok){say(r.j.message||T.fail);return}
+    S.helpOpen=null;say(isName?T.nameSent:T.helpSent);S.lesson?(keepInputs(),lesson()):list();
   }
   function keepInputs(){root.querySelectorAll('[data-in]').forEach(el=>{const s=S.lesson.steps[S.idx];(S.sel[s.id]=S.sel[s.id]||{})[el.dataset.in]=el.value})}
 
