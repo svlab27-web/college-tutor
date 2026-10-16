@@ -292,13 +292,14 @@ const TH={ru:{nameErr:'Ошибка в ФИО',help:'Нужна помощь',le
   write:'Telegram-ға жазу — жақында; әзірге студентке жеке немесе сабақта жауап беріңіз.'}}[lang];
 let HELP_ALL=false;
 function loadHelp(gid){LIVE.help[gid]='loading';api('GET','/curator/help?group_id='+encodeURIComponent(gid)+'&status=all')
-  .then(r=>{LIVE.help[gid]=r.requests||[];if(LIVE.gid===gid)render()}).catch(e=>{LIVE.help[gid]=null;if(tab==='help')toast(e.message||T.errGeneric)})}
+  .then(r=>{LIVE.help[gid]=r.requests||[];if(LIVE.gid===gid)render()}).catch(e=>{LIVE.help[gid]='error';if(tab==='help'){render();toast(e.message||T.errGeneric)}})}
 function liveHelp(){
   if(!LIVE.gid)return `<h1>${T.helpTitle}</h1><div class="card muted">${T.noGroups}</div>`;
   const sel=`<select class="i" id="lgrp" aria-label="${T.group}">${LIVE.groups.map(x=>`<option value="${x.id}" ${x.id===LIVE.gid?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`;
   const head=`<h1>${T.helpTitle}</h1><p class="sub">${TH.sub}</p><div class="row" style="margin-bottom:10px"><div class="grow">${sel}</div></div><p><span class="tag t-ok">● ${T.live}</span></p>`;
   const H=LIVE.help[LIVE.gid];
   if(H===undefined)loadHelp(LIVE.gid);
+  if(H==='error')return head+`<div class="card"><p class="muted">${T.errGeneric}</p><button class="btn secondary" data-act="lretry">${TP.retry}</button></div>`;
   if(!Array.isArray(H))return head+`<div class="card muted">${TP.loading}</div>`;
   const ago=t=>T.ago(Math.max(0,Math.round((Date.now()-Date.parse(t))/36e5)));
   const card=h=>`<div class="card" style="${h.status==='resolved'?'opacity:.6':''}"><div class="row"><div class="grow"><b>${esc(h.full_name||'—')}</b> <span class="muted">· ${ago(h.created_at)}</span>
@@ -314,14 +315,14 @@ const TP={ru:{started:'начали уроки',lessonsDone:'уроков про
   stuckWhy:(l,a,h)=>`«${l}» — ${a} ${plural(a,['попытка','попытки','попыток'])}, ${h} ${plural(h,['подсказка','подсказки','подсказок'])}`,
   lessonsTitle:'Уроки',lStarted:(k,n)=>`начали ${k} из ${n}`,lDone:k=>`прошли ${k}`,lFirst:(f,c)=>`самостоятельную с первой попытки: ${f} из ${c}`,
   tableTitle:'Студенты',thDone:'Уроки',thSteps:'Шаги',thHints:'Подсказки',thInd:'Самост. с 1-й попытки',thLast:'Активность',never:'не заходил(а)',
-  demoTag:'демо — не сохраняется',loading:'Загружаем прогресс…',noLessons:'Опубликованных уроков пока нет.',noStudents:'В группе пока нет студентов.',
+  demoTag:'демо — не сохраняется',loading:'Загружаем…',retry:'Повторить',noLessons:'Опубликованных уроков пока нет.',noStudents:'В группе пока нет студентов.',
   how:'Прогресс сохраняется только у студентов с согласием (а у младше 18 — с отметкой согласия родителя).'},
  kk:{started:'сабақты бастады',lessonsDone:'сабақ өтілді',stuck:'кептеліп қалды',students:'студент',
   stuckTitle:'Кім кептеліп қалды',stuckSub:'Сабақ аяқталмаған, ал әрекет немесе кеңес көп. Жазып немесе сабақта жақындаған жөн.',noStuck:'Ешкім кептелген жоқ — бәрі алға жылжып келеді.',
   stuckWhy:(l,a,h)=>`«${l}» — ${a} әрекет, ${h} кеңес`,
-  lessonsTitle:'Сабақтар',lStarted:(k,n)=>`${n}-ден ${k} бастады`,lDone:k=>`${k} өтті`,lFirst:(f,c)=>`өз бетінше есепті бірінші әрекеттен: ${c}-ден ${f}`,
+  lessonsTitle:'Сабақтар',lStarted:(k,n)=>`бастады: ${k}/${n}`,lDone:k=>`${k} өтті`,lFirst:(f,c)=>`өз бетінше есеп бірінші әрекеттен: ${f}/${c}`,
   tableTitle:'Студенттер',thDone:'Сабақтар',thSteps:'Қадамдар',thHints:'Кеңестер',thInd:'Өз бетінше 1-әрекеттен',thLast:'Белсенділік',never:'кірмеген',
-  demoTag:'демо — сақталмайды',loading:'Прогресс жүктелуде…',noLessons:'Жарияланған сабақтар әзірге жоқ.',noStudents:'Топта әзірге студент жоқ.',
+  demoTag:'демо — сақталмайды',loading:'Жүктелуде…',retry:'Қайталау',noLessons:'Жарияланған сабақтар әзірге жоқ.',noStudents:'Топта әзірге студент жоқ.',
   how:'Прогресс тек келісімі бар студенттерде сақталады (18-ге толмағандарда — ата-ана келісімі белгіленгенде).'}}[lang];
 // Уроки — только опубликованные и в порядке плана: берём из /api/lessons (куратору он отдаёт все с is_published, week, order; #55)
 function loadProgress(gid){LIVE.pr[gid]='loading';
@@ -329,13 +330,14 @@ function loadProgress(gid){LIVE.pr[gid]='loading';
   .then(([r,ls])=>{if(ls&&Array.isArray(ls.lessons)){const pub=ls.lessons.filter(l=>l.is_published),ids=new Set(pub.map(l=>l.id));
       r.lessons=pub.map(l=>({...(r.lessons||[]).find(x=>x.id===l.id)||{},id:l.id,title:l.title,week:l.week,order:l.order,steps_total:l.steps_total}));
       (r.students||[]).forEach(s=>{for(const id of Object.keys(s.lessons||{}))if(!ids.has(id))delete s.lessons[id]})}
-    LIVE.pr[gid]=r;if(tab==='progress'&&LIVE.gid===gid)render()}).catch(e=>{LIVE.pr[gid]=null;toast(e.message||T.errGeneric)})}
+    LIVE.pr[gid]=r;if(tab==='progress'&&LIVE.gid===gid)render()}).catch(e=>{LIVE.pr[gid]='error';if(tab==='progress')render();toast(e.message||T.errGeneric)})}
 function liveProgress(){
   if(!LIVE.gid)return `<h1>${T.progressTitle}</h1><div class="card muted">${T.noGroups}</div>`;
   const sel=`<select class="i" id="lgrp" aria-label="${T.group}">${LIVE.groups.map(x=>`<option value="${x.id}" ${x.id===LIVE.gid?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`;
   const head=`<h1>${T.progressTitle}</h1><div class="row" style="margin-bottom:10px"><div class="grow">${sel}</div></div><p><span class="tag t-ok">● ${T.live}</span></p>`;
   const P=LIVE.pr[LIVE.gid];
   if(P===undefined){loadProgress(LIVE.gid)}
+  if(P==='error')return head+`<div class="card"><p class="muted">${T.errGeneric}</p><button class="btn secondary" data-act="lretry">${TP.retry}</button></div>`;
   if(!P||P==='loading')return head+`<div class="card muted">${TP.loading}</div>`;
   const L=P.lessons||[],St=P.students||[],n=St.length;
   if(!n)return head+`<div class="card muted">${TP.noStudents}</div>`;
@@ -351,12 +353,12 @@ function liveProgress(){
     return {s,started:ls.length>0,done,steps,hints,ind:ind.length,first,last,stuck}});
   const stuck=rows.filter(r=>r.stuck.length);
   const tiles=`<div class="tiles"><div class="tile"><b>${n}</b><span>${TP.students}</span></div><div class="tile"><b>${rows.filter(r=>r.started).length}</b><span>${TP.started}</span></div><div class="tile"><b>${rows.reduce((a,r)=>a+r.done,0)}</b><span>${TP.lessonsDone}</span></div><div class="tile ${stuck.length?'alert':''}"><b>${stuck.length}</b><span>${TP.stuck}</span></div></div>`;
-  const stuckCard=`<div class="card"><b>${TP.stuckTitle}</b><div class="muted">${TP.stuckSub}</div>${stuck.length?stuck.map(r=>`<div class="topic"><span class="num">!</span><div class="grow"><b>${esc(r.s.full_name)}</b>${r.stuck.map(w=>`<div class="muted">${esc(w)}</div>`).join('')}</div></div>`).join(''):`<div class="muted" style="margin-top:10px">${TP.noStuck}</div>`}</div>`;
+  const stuckCard=`<div class="card"><b>${TP.stuckTitle}</b><div class="muted">${TP.stuckSub}</div>${stuck.length?stuck.map(r=>`<div class="topic"><span class="num">!</span><div class="grow"><b>${esc(r.s.full_name||'—')}</b>${r.stuck.map(w=>`<div class="muted">${esc(w)}</div>`).join('')}</div></div>`).join(''):`<div class="muted" style="margin-top:10px">${TP.noStuck}</div>`}</div>`;
   const lessonsCard=`<div class="card"><b>${TP.lessonsTitle}</b>${L.map(l=>{const xs=St.map(s=>(s.lessons||{})[l.id]).filter(Boolean),c=xs.filter(x=>x.completed_at).length,
       solved=xs.filter(x=>x.independent&&x.independent.solved),f=solved.filter(x=>x.independent.first_try).length,p=Math.round(100*xs.length/n);
       return `<div style="margin-top:12px"><div class="row"><span class="grow">${esc(l.title)}</span><b>${p}%</b></div><div class="bar ${p<40?'low':p<70?'mid':''}"><i style="width:${p}%"></i></div><div class="muted">${TP.lStarted(xs.length,n)} · ${TP.lDone(c)}${solved.length?` · ${TP.lFirst(f,solved.length)}`:''}</div></div>`}).join('')}</div>`;
   const table=`<div class="card"><b>${TP.tableTitle}</b><div class="table-wrap"><table><thead><tr><th>${T.thName}</th><th>${TP.thDone}</th><th>${TP.thSteps}</th><th>${TP.thHints}</th><th>${TP.thInd}</th><th>${TP.thLast}</th></tr></thead><tbody>
-    ${rows.slice().sort((a,b)=>(b.stuck.length?1:0)-(a.stuck.length?1:0)||b.steps-a.steps).map(r=>`<tr class="${r.stuck.length?'stuck':''}"><td>${esc(r.s.full_name)}${r.s.can_save_progress?'':`<div class="muted">${TP.demoTag}</div>`}</td><td>${r.done}/${L.length}</td><td>${r.steps}</td><td>${r.hints}</td><td>${r.ind?`${r.first}/${r.ind}`:'—'}</td><td class="muted">${r.last?T.ago(hoursAgo(r.last)):r.s.can_save_progress?TP.never:'—'}</td></tr>`).join('')}
+    ${rows.slice().sort((a,b)=>(b.stuck.length?1:0)-(a.stuck.length?1:0)||b.steps-a.steps).map(r=>`<tr class="${r.stuck.length?'stuck':''}"><td>${esc(r.s.full_name||'—')}${r.s.can_save_progress?'':`<div class="muted">${TP.demoTag}</div>`}</td><td>${r.done}/${L.length}</td><td>${r.steps}</td><td>${r.hints}</td><td>${r.ind?`${r.first}/${r.ind}`:'—'}</td><td class="muted">${r.last?T.ago(hoursAgo(r.last)):r.s.can_save_progress?TP.never:'—'}</td></tr>`).join('')}
     </tbody></table></div><p class="muted" style="margin-top:10px">${TP.how}</p></div>`;
   return head+tiles+stuckCard+lessonsCard+table}
 
@@ -430,7 +432,7 @@ function showSeq(){const list=curRoster().filter(s=>s.used===null&&s.code);
 // ── Действия ────────────────────────────────────────────────
 document.getElementById('view').addEventListener('change',e=>{
   if(e.target.id==='grp'){cur=e.target.value;render()}
-  if(e.target.id==='lgrp'){LIVE.gid=e.target.value;if(LIVE.help[LIVE.gid]===undefined)loadHelp(LIVE.gid);loadLive().then(render).catch(err=>toast(err.message))}
+  if(e.target.id==='lgrp'){LIVE.gid=e.target.value;if(LIVE.help[LIVE.gid]===undefined)loadHelp(LIVE.gid);loadLive().then(render).catch(err=>{toast(err.message);render()})}
   if(e.target.id==='roster-file'&&e.target.files[0])toast(LIVE?T.listSoon:T.listUploaded(e.target.files[0].name));
   if(e.target.id==='ktp'&&e.target.files[0]){S.uploaded=e.target.files[0].name;save();render();toast(T.uploaded(S.uploaded,8))}
 });
@@ -451,6 +453,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
   if(a==='write'||a==='reply')toast(T.replyMsg);
   if(a==='resolve'){const h=S.help.find(x=>x.id===+b.dataset.h);if(h){h.done=true;save();render()}}
   if(a==='lhelpall'){HELP_ALL=!HELP_ALL;render()}
+  if(a==='lretry'){delete LIVE.pr[LIVE.gid];delete LIVE.help[LIVE.gid];render()}
   if(a==='lhelp'){b.disabled=true;api('PATCH','/curator/help/'+encodeURIComponent(b.dataset.h),{status:b.dataset.st})
     .then(r=>{const L=LIVE.help[LIVE.gid];const h=Array.isArray(L)&&L.find(x=>x.id===b.dataset.h);if(h){h.status=r.request.status;h.resolved_at=r.request.resolved_at}render()})
     .catch(e=>{b.disabled=false;toast(e.message||T.errGeneric)})}
