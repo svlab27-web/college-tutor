@@ -35,8 +35,10 @@ test('уроки и переводы попадают в базу; повтор�
   assert.equal(rows.length, 2);
   for (const r of rows) {
     assert.equal(r.language, 'ru');
-    assert.equal(r.is_published, false); // status review — ещё не утверждён преподавателем
-    assert.equal(r.tr, 'draft');
+    // опубликован ровно тогда, когда в файле status approved (утвердил преподаватель)
+    const file = lessons.find((l) => l.base.slug === r.slug)!;
+    assert.equal(r.is_published, file.base.content.status === 'approved', r.slug);
+    assert.equal(r.tr, file.translations[0].content.status, r.slug);
     assert.ok(r.steps >= 4);
   }
 });
