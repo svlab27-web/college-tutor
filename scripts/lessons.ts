@@ -61,6 +61,7 @@ export function validateLesson(c: unknown): string[] {
   if ('slug' in c && !(typeof c.slug === 'string' && SLUG.test(c.slug))) errors.push('slug: формат 01-latinica-cherez-defis');
   for (const k of ['title', 'skill', 'story']) if (k in c && !isStr(c[k])) errors.push(`${k}: непустая строка`);
   if ('minutes' in c && !(Number.isInteger(c.minutes) && (c.minutes as number) >= 1)) errors.push('minutes: целое ≥ 1');
+  for (const k of ['week', 'order']) if (k in c && !(Number.isInteger(c[k]) && (c[k] as number) >= 1)) errors.push(`${k}: целое ≥ 1`);
   if ('language' in c && c.language !== 'ru' && c.language !== 'kk') errors.push('language: ru или kk');
   if ('status' in c && !STATUSES.includes(c.status as string)) errors.push(`status: одно из ${STATUSES.join(', ')}`);
   for (const k of ['approved_by', 'material', 'variable']) if (k in c && typeof c[k] !== 'string') errors.push(`${k}: строка`);
@@ -186,9 +187,14 @@ export function structureDiff(a: Json, b: Json, at = ''): string[] {
   return JSON.stringify(a) === JSON.stringify(b) ? [] : [at || '.'];
 }
 
-function walk(dir: string): string[] {
+// content/plans/ — планы семестра (КТП), не уроки: их проверяет loadPlans
+const PLANS_DIR = 'plans';
+
+function walk(dir: string, top = true): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
-    e.isDirectory() ? walk(join(dir, e.name)) : e.name.endsWith('.json') && e.name !== 'lesson.schema.json' ? [join(dir, e.name)] : [],
+    e.isDirectory()
+      ? top && e.name === PLANS_DIR ? [] : walk(join(dir, e.name), false)
+      : e.name.endsWith('.json') && e.name !== 'lesson.schema.json' ? [join(dir, e.name)] : [],
   );
 }
 
@@ -249,4 +255,82 @@ export function loadContent(root: string): LoadResult {
     pair.translations.push(t);
   }
   return { lessons: [...bases.values()], errors };
+}
+
+// ── План семестра (КТП): content/plans/<slug>.json ────────────────────────────
+// Недели по порядку, у каждой — тема, часы, «знать», «уметь» и уроки сервиса (slug из content/<subject>/).
+// Урок из плана должен существовать, а его week/order — совпадать с неделей и местом в плане:
+// по ним приложение показывает уроки в порядке КТП.
+
+export interface PlanFile {
+  path: string;
+  content: Obj;
+}
+
+export function validatePlan(c: unknown, lessons: LessonPair[]): string[] {
+  const errors: string[] = [];
+  if (!isObj(c)) return ['план должен быть объектом'];
+  for (const k of ['subject', 'slug', 'title', 'semester', 'hours_total', 'weeks', 'status']) {
+    if (!(k in c)) errors.push(`нет обязательного поля ${k}`);
+  }
+  if ('subject' in c && !SUBJECTS.includes(c.subject as string)) errors.push(`subject: одно из ${SUBJECTS.join(', ')}`);
+  if ('status' in c && !STATUSES.includes(c.status as string)) errors.push(`status: одно из ${STATUSES.join(', ')}`);
+  for (const k of ['semester', 'hours_total']) if (k in c && !(Number.isInteger(c[k]) && (c[k] as number) >= 1)) errors.push(`${k}: целое ≥ 1`);
+  const weeks = c.weeks;
+  if (!Array.isArray(weeks) || weeks.length === 0) return [...errors, 'weeks: хотя бы одна неделя'];
+
+  const bySlug = new Map(lessons.filter((l) => l.base.subject === c.subject).map((l) => [l.base.slug, l.base.content]));
+  const used = new Set<string>();
+  let hours = 0;
+  weeks.forEach((w, i) => {
+    const at = `weeks[${i}]`;
+    if (!isObj(w)) return errors.push(`${at}: объект`);
+    if (w.week !== i + 1) errors.push(`${at}.week: ожидалась ${i + 1} — недели по порядку без пропусков`);
+    if (!isStr(w.topic)) errors.push(`${at}.topic: непустая строка`);
+    if (!(isNum(w.hours) && (w.hours as number) > 0)) errors.push(`${at}.hours: число > 0`);
+    else hours += w.hours as number;
+    for (const k of ['know', 'can']) if (!(Array.isArray(w[k]) && isStrArr(w[k]))) errors.push(`${at}.${k}: массив строк`);
+    if (!(Array.isArray(w.lessons) && isStrArr(w.lessons))) return errors.push(`${at}.lessons: массив slug (может быть пустым)`);
+    (w.lessons as string[]).forEach((slug, j) => {
+      const l = bySlug.get(slug);
+      if (!l) return errors.push(`${at}.lessons[${j}]: урока ${c.subject}/${slug} нет в content/`);
+      if (used.has(slug)) errors.push(`${at}.lessons[${j}]: ${slug} уже есть в плане`);
+      used.add(slug);
+      if (l.week !== w.week || l.order !== j + 1) {
+        errors.push(`${at}.lessons[${j}]: у урока ${slug} week/order = ${l.week ?? '—'}/${l.order ?? '—'}, а в плане ${w.week}/${j + 1}`);
+      }
+    });
+  });
+  if (isNum(c.hours_total) && hours !== c.hours_total) errors.push(`hours_total ${c.hours_total}, а сумма часов по неделям ${hours}`);
+  for (const [slug, l] of bySlug) {
+    if ('week' in l && !used.has(slug)) errors.push(`урок ${slug} с week = ${l.week} не стоит ни в одной неделе плана`);
+  }
+  return errors;
+}
+
+export function loadPlans(root: string, lessons: LessonPair[]): { plans: PlanFile[]; errors: string[] } {
+  const dir = join(root, PLANS_DIR);
+  let names: string[];
+  try {
+    names = readdirSync(dir).filter((n) => n.endsWith('.json')).sort();
+  } catch {
+    return { plans: [], errors: [] };
+  }
+  const plans: PlanFile[] = [];
+  const errors: string[] = [];
+  for (const n of names) {
+    const path = `${PLANS_DIR}/${n}`;
+    let content: unknown;
+    try {
+      content = JSON.parse(readFileSync(join(dir, n), 'utf8'));
+    } catch (e) {
+      errors.push(`${path}: не JSON (${(e as Error).message})`);
+      continue;
+    }
+    const problems = validatePlan(content, lessons);
+    if (isObj(content) && content.slug !== n.replace(/\.json$/, '')) problems.push(`slug «${content.slug}» не совпадает с именем файла`);
+    if (problems.length) errors.push(...problems.map((p) => `${path}: ${p}`));
+    else plans.push({ path, content: content as Obj });
+  }
+  return { plans, errors };
 }

@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
-import { loadContent, structureDiff, structureOf, validateLesson, type Obj } from '../scripts/lessons';
+import { loadContent, loadPlans, structureDiff, structureOf, validateLesson, validatePlan, type Obj } from '../scripts/lessons';
 
 const CONTENT = resolve(__dirname, '..', '..', 'content');
 const read = (p: string) => JSON.parse(readFileSync(join(CONTENT, p), 'utf8')) as Obj;
@@ -14,7 +14,35 @@ test('настоящие уроки из content/ проходят провер�
   const { lessons, errors } = loadContent(CONTENT);
   assert.deepEqual(errors, []);
   assert.ok(lessons.length >= 2);
-  for (const l of lessons) assert.equal(l.translations.length, 1, `${l.base.path}: нет перевода kk`);
+  // Перевод kk — у уроков пилота обязателен, у новых уроков появляется позже (#15)
+  for (const l of lessons) assert.ok(l.translations.length <= 1, `${l.base.path}: больше одного перевода`);
+  for (const p of ['python/01-skidka-v-kafe.json', 'math/01-dvor-maks-ploshchadi.json']) {
+    assert.equal(lessons.find((l) => l.base.path === p)?.translations.length, 1, `${p}: нет перевода kk`);
+  }
+});
+
+test('план семестра из content/plans/ проходит проверку и не считается уроком', () => {
+  const { lessons, errors } = loadContent(CONTENT);
+  assert.deepEqual(errors, []);
+  assert.ok(lessons.every((l) => !l.base.path.startsWith('plans')));
+  const plans = loadPlans(CONTENT, lessons);
+  assert.deepEqual(plans.errors, []);
+  assert.equal(plans.plans.length, 1);
+});
+
+test('план: урока нет, week/order не совпадают, часы не сходятся, урок вне плана — ошибки', () => {
+  const { lessons } = loadContent(CONTENT);
+  const plan = read('plans/python-1-semestr.json');
+  const weeks = plan.weeks as Obj[];
+  weeks[0].lessons = ['03-peremennye-transportnaya-karta', '99-net-takogo']; // 02 выпал из плана, 03 сдвинулся на 1-е место
+  weeks[1].hours = 5;
+  weeks[2].week = 7;
+  const e = validatePlan(plan, lessons).join('\n');
+  assert.match(e, /урока python\/99-net-takogo нет в content/);
+  assert.match(e, /у урока 03-peremennye-transportnaya-karta week\/order = 1\/2, а в плане 1\/1/);
+  assert.match(e, /hours_total 72, а сумма часов по неделям 73/);
+  assert.match(e, /weeks\[2\]\.week: ожидалась 3/);
+  assert.match(e, /урок 02-tablo-pervaya-programma с week = 1 не стоит ни в одной неделе плана/);
 });
 
 test('нет обязательных полей, неверный slug и индекс ответа — ошибки', () => {
