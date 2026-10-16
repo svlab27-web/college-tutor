@@ -194,7 +194,7 @@ document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='
 
 function renderTabs(){const open=S.help.filter(h=>!h.done).length;
   document.getElementById('tabs').innerHTML=Object.entries(T.tabs).map(([k,v])=>`<button type="button" data-tab="${k}" class="${k===tab?'active':''}">${v}${k==='help'&&open?`<span class="count">${open}</span>`:''}</button>`).join('')}
-document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){tab=b.dataset.tab;render();window.scrollTo({top:0})}});
+document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){tab=b.dataset.tab;if(tab==='progress'&&LIVE&&LIVE.gid&&LIVE.pr[LIVE.gid]!=='loading')delete LIVE.pr[LIVE.gid];render();window.scrollTo({top:0})}});
 function groupSelect(){return `<select class="i" id="grp" aria-label="${T.group}">${S.groups.map(g=>`<option value="${g.id}" ${g.id===cur?'selected':''}>${esc(g.name)} · ${T.subjects[g.subject]}</option>`).join('')}</select>`}
 function render(){renderTabs();document.getElementById('view').innerHTML=({groups,roster,progress,plan,tasks,help})[tab]()+(LIVE&&(tab==='roster'||tab==='progress')?'':`<p class="note">${T.demoNote}</p>`)}
 
@@ -298,8 +298,13 @@ const TP={ru:{started:'начали уроки',lessonsDone:'уроков про
   tableTitle:'Студенттер',thDone:'Сабақтар',thSteps:'Қадамдар',thHints:'Кеңестер',thInd:'Өз бетінше 1-әрекеттен',thLast:'Белсенділік',never:'кірмеген',
   demoTag:'демо — сақталмайды',loading:'Прогресс жүктелуде…',noLessons:'Жарияланған сабақтар әзірге жоқ.',noStudents:'Топта әзірге студент жоқ.',
   how:'Прогресс тек келісімі бар студенттерде сақталады (18-ге толмағандарда — ата-ана келісімі белгіленгенде).'}}[lang];
-function loadProgress(gid){LIVE.pr[gid]='loading';api('GET','/curator/progress?group_id='+encodeURIComponent(gid))
-  .then(r=>{LIVE.pr[gid]=r;if(tab==='progress'&&LIVE.gid===gid)render()}).catch(e=>{LIVE.pr[gid]=null;toast(e.message||T.errGeneric)})}
+// Уроки — только опубликованные и в порядке плана: берём из /api/lessons (куратору он отдаёт все с is_published, week, order; #55)
+function loadProgress(gid){LIVE.pr[gid]='loading';
+  Promise.all([api('GET','/curator/progress?group_id='+encodeURIComponent(gid)),api('GET','/lessons?lang='+lang).catch(()=>null)])
+  .then(([r,ls])=>{if(ls&&Array.isArray(ls.lessons)){const pub=ls.lessons.filter(l=>l.is_published),ids=new Set(pub.map(l=>l.id));
+      r.lessons=pub.map(l=>({...(r.lessons||[]).find(x=>x.id===l.id)||{},id:l.id,title:l.title,week:l.week,order:l.order,steps_total:l.steps_total}));
+      (r.students||[]).forEach(s=>{for(const id of Object.keys(s.lessons||{}))if(!ids.has(id))delete s.lessons[id]})}
+    LIVE.pr[gid]=r;if(tab==='progress'&&LIVE.gid===gid)render()}).catch(e=>{LIVE.pr[gid]=null;toast(e.message||T.errGeneric)})}
 function liveProgress(){
   if(!LIVE.gid)return `<h1>${T.progressTitle}</h1><div class="card muted">${T.noGroups}</div>`;
   const sel=`<select class="i" id="lgrp" aria-label="${T.group}">${LIVE.groups.map(x=>`<option value="${x.id}" ${x.id===LIVE.gid?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`;
