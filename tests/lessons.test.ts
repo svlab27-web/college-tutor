@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
-import { loadContent, loadPlans, structureDiff, structureOf, validateLesson, validatePlan, type Obj } from '../scripts/lessons';
+import { labResult, loadContent, loadPlans, structureDiff, structureOf, validateLesson, validatePlan, type Obj } from '../scripts/lessons';
 
 const CONTENT = resolve(__dirname, '..', '..', 'content');
 const read = (p: string) => JSON.parse(readFileSync(join(CONTENT, p), 'utf8')) as Obj;
@@ -89,13 +89,55 @@ test('файлы: перевод без основного, language не по �
   const ru = read('python/01-skidka-v-kafe.json');
   const kk = read('python/01-skidka-v-kafe.kk.json');
   writeFileSync(join(dir, 'python', '01-skidka-v-kafe.json'), JSON.stringify(ru));
-  (kk.steps as Obj[])[2].expected = 0;
+  (kk.steps as Obj[])[1].expected = 0; // шаг без лаборатории: у s3 расхождение с checks поймала бы уже проверка лаборатории
   writeFileSync(join(dir, 'python', '01-skidka-v-kafe.kk.json'), JSON.stringify(kk));
   writeFileSync(join(dir, 'math', '01-dvor-maks-ploshchadi.kk.json'), readFileSync(join(CONTENT, 'math/01-dvor-maks-ploshchadi.kk.json')));
   writeFileSync(join(dir, 'math', '02-oshibka.json'), '{ не json');
   const { errors } = loadContent(dir);
   const e = errors.join('\n');
-  assert.match(e, /01-skidka-v-kafe\.kk\.json: структура не совпадает .* steps\[2\]\.expected/);
+  assert.match(e, /01-skidka-v-kafe\.kk\.json: структура не совпадает .* steps\[1\]\.expected/);
   assert.match(e, /нет основного файла math\/01-dvor-maks-ploshchadi\.json/);
   assert.match(e, /02-oshibka\.json: не JSON/);
+});
+
+test('лаборатория: при верном варианте совпадает с checks, ошибки в данных ловятся', () => {
+  const c = read('python/01-skidka-v-kafe.json');
+  const s3 = (c.steps as Obj[]).find((s) => s.id === 's3')!;
+  const lab = s3.lab as Obj;
+  const opts = s3.options as string[];
+  // касса: «>=» — 1000 со скидкой, «>» — без; знаки сравнения считаются как в Python
+  assert.equal(labResult(lab, opts.indexOf('>='), opts, 1000), 900);
+  assert.equal(labResult(lab, opts.indexOf('>'), opts, 1000), 1000);
+  assert.equal(labResult(lab, opts.indexOf('>='), opts, 1001), 900.9);
+  assert.deepEqual(validateLesson(c), []);
+
+  lab.threshold = 999; // порог разошёлся с checks
+  assert.match(validateLesson(c).join('\n'), /при верном варианте и 999 лаборатория даёт 899\.1, а в checks 999/);
+  lab.threshold = 1000;
+  s3.options = ['больше', '>=', '<', '=='];
+  assert.match(validateLesson(c).join('\n'), /варианты шага должны быть знаками сравнения/);
+
+  const ind = (c.steps as Obj[]).find((s) => s.independent === true)!;
+  ind.lab = { kind: 'threshold', title: 't', label: 'l', threshold: 1, then_factor: 1, presets: [1] };
+  assert.match(validateLesson(c).join('\n'), /в самостоятельной задаче лаборатории нет/);
+});
+
+test('лаборатория chain: порядок условий; число порядков = числу вариантов', () => {
+  const c = read('python/08-elif-ocenka-po-ballam.json');
+  const s3 = (c.steps as Obj[]).find((s) => s.id === 's3')!;
+  const lab = s3.lab as Obj;
+  const opts = s3.options as string[];
+  assert.equal(labResult(lab, 1, opts, 95), 'удовлетворительно'); // исходная ошибка урока: >= 50 первым
+  assert.equal(labResult(lab, 0, opts, 95), 'отлично');
+  assert.equal(labResult(lab, 0, opts, 49), 'неудовлетворительно');
+  (lab.orders as unknown[]).pop();
+  assert.match(validateLesson(c).join('\n'), /orders: по одному порядку/);
+});
+
+test('лаборатория в переводе: числа те же, что в основном файле', () => {
+  const ru = read('python/01-skidka-v-kafe.json');
+  const kk = read('python/01-skidka-v-kafe.kk.json');
+  assert.deepEqual(structureDiff(structureOf(ru), structureOf(kk)), []);
+  (((kk.steps as Obj[]).find((s) => s.id === 's3')!).lab as Obj).threshold = 2000;
+  assert.deepEqual(structureDiff(structureOf(ru), structureOf(kk)), ['steps[2].lab.threshold']);
 });

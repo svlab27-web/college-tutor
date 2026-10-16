@@ -75,6 +75,10 @@ for x in plan["weeks"]:
                 w(f"Вторая часть: {st['number_part']['label']} — **{st['number_part']['expected']['value']}** ✔\n")
             if st.get("checks"):
                 w("Программа проверяет выбор студента на значениях: " + ", ".join(f"{c['input']} → {c['expect']}" for c in st["checks"]) + ".\n")
+            if st.get("lab"):
+                lab = st["lab"]
+                what = "выбирает знак и вводит свои суммы — программа считает" if lab["kind"] == "threshold" else "выбирает порядок условий и вводит свои баллы — программа выставляет оценку"
+                w(f"*Лаборатория «{lab['title']}»:* студент {what} (готовые значения: {', '.join(map(str, lab['presets']))}). Правильно или нет — не подсказывает, сравнить с правилом должен сам.\n")
             if st.get("hints"):
                 w("Подсказки: " + " → ".join(f"«{h}»" for h in st["hints"]) + "\n")
             if st.get("simple"):

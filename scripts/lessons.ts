@@ -49,6 +49,65 @@ function checkTests(v: unknown, at: string, errors: string[]) {
   });
 }
 
+// ── Лаборатория шага: студент меняет вариант и вводит свои значения, программа считает ──
+// threshold — «если x ОП порог: x × коэффициент, иначе x»; ОП — выбранный вариант (>, >=, <, <=, ==, !=).
+// chain — цепочка if / elif / else: orders[номер варианта] = [[порог, итог], …], условие x >= порог, иначе else.
+// Ответов лаборатория не показывает — только что посчитала программа студента; при верном варианте
+// она обязана выдавать ровно checks шага (проверяем ниже), иначе урок с ошибкой.
+const LAB_OPS = ['>', '>=', '<', '<=', '==', '!='];
+
+export function labResult(lab: Obj, option: number, options: string[], x: number): number | string | null {
+  if (lab.kind === 'threshold') {
+    const op = options[option];
+    const t = lab.threshold as number;
+    const hit = op === '>' ? x > t : op === '>=' ? x >= t : op === '<' ? x < t : op === '<=' ? x <= t : op === '==' ? x === t : op === '!=' ? x !== t : null;
+    if (hit === null) return null;
+    return hit ? Math.round(x * (lab.then_factor as number) * 100) / 100 : x;
+  }
+  if (lab.kind === 'chain') {
+    const order = (lab.orders as [number, string][][])[option];
+    if (!order) return null;
+    for (const [t, label] of order) if (x >= t) return label;
+    return lab.else as string;
+  }
+  return null;
+}
+
+function checkLab(s: Obj, at: string, errors: string[]) {
+  const lab = s.lab;
+  const la = `${at}.lab`;
+  if (!isObj(lab)) return void errors.push(`${la}: объект`);
+  if (s.independent === true) errors.push(`${la}: в самостоятельной задаче лаборатории нет — она подсказывает ответ`);
+  if (s.answer_type !== 'choice' || !isStrArr(s.options)) return void errors.push(`${la}: только у шага choice с options`);
+  for (const k of ['title', 'label']) if (!isStr(lab[k])) errors.push(`${la}.${k}: непустая строка`);
+  if (!(Array.isArray(lab.presets) && lab.presets.length >= 1 && lab.presets.length <= 10 && lab.presets.every(isNum))) {
+    errors.push(`${la}.presets: от 1 до 10 чисел`);
+  }
+  const options = s.options as string[];
+  if (lab.kind === 'threshold') {
+    if (!isNum(lab.threshold) || !isNum(lab.then_factor)) errors.push(`${la}: нужны числа threshold и then_factor`);
+    if ('unit' in lab && typeof lab.unit !== 'string') errors.push(`${la}.unit: строка`);
+    const bad = options.filter((o) => !LAB_OPS.includes(o));
+    if (bad.length) errors.push(`${la}: варианты шага должны быть знаками сравнения (${LAB_OPS.join(' ')}), а не «${bad.join('», «')}»`);
+  } else if (lab.kind === 'chain') {
+    const orders = lab.orders;
+    const okOrder = (o: unknown) => Array.isArray(o) && o.length > 0 && o.every((b) => Array.isArray(b) && b.length === 2 && isNum(b[0]) && isStr(b[1]));
+    if (!(Array.isArray(orders) && orders.length === options.length && orders.every(okOrder))) {
+      errors.push(`${la}.orders: по одному порядку [[порог, итог], …] на каждый вариант ответа (${options.length})`);
+    }
+    if (!isStr(lab.else)) errors.push(`${la}.else: непустая строка`);
+  } else {
+    return void errors.push(`${la}.kind: threshold или chain`);
+  }
+  // Верный вариант в лаборатории даёт ровно то, что в checks
+  if (errors.some((e) => e.startsWith(la)) || !Array.isArray(s.checks) || !Number.isInteger(s.expected)) return;
+  for (const c of s.checks as Obj[]) {
+    if (!isNum(c.input)) continue;
+    const got = labResult(lab, s.expected as number, options, c.input);
+    if (got !== c.expect) errors.push(`${la}: при верном варианте и ${c.input} лаборатория даёт ${JSON.stringify(got)}, а в checks ${JSON.stringify(c.expect)}`);
+  }
+}
+
 // Проверка по lesson.schema.json (то, что в ней сказано) + смысл: индекс ответа в пределах вариантов,
 // у самостоятельной задачи нет подсказок, id шагов не повторяются.
 export function validateLesson(c: unknown): string[] {
@@ -131,6 +190,7 @@ export function validateLesson(c: unknown): string[] {
         if ('tests' in v) checkTests(v.tests, `${vat}.tests`, errors);
       });
     }
+    if ('lab' in s) checkLab(s, at, errors);
     if ('free_input' in s) {
       if (!Array.isArray(s.free_input)) errors.push(`${at}.free_input: массив`);
       else s.free_input.forEach((f, j) => {
@@ -170,6 +230,15 @@ export function structureOf(c: Obj): Json {
         ? (s.free_input as Obj[]).map((f) => ({ answer_type: f.answer_type ?? null, expected: f.expected ?? null, tests: f.tests ?? null }))
         : null,
       common_mistakes: Array.isArray(s.common_mistakes) ? (s.common_mistakes as Obj[]).map((m) => m.pattern ?? null) : null,
+      lab: isObj(s.lab)
+        ? {
+            kind: s.lab.kind ?? null,
+            threshold: s.lab.threshold ?? null,
+            then_factor: s.lab.then_factor ?? null,
+            presets: s.lab.presets ?? null,
+            orders: Array.isArray(s.lab.orders) ? (s.lab.orders as Json[][]).map((o) => (Array.isArray(o) ? o.map((b) => (Array.isArray(b) ? b[0] : null)) : null)) : null,
+          }
+        : null,
     })),
   };
 }
