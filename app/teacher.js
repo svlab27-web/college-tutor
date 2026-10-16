@@ -196,7 +196,7 @@ function renderTabs(){const open=S.help.filter(h=>!h.done).length;
   document.getElementById('tabs').innerHTML=Object.entries(T.tabs).map(([k,v])=>`<button type="button" data-tab="${k}" class="${k===tab?'active':''}">${v}${k==='help'&&open?`<span class="count">${open}</span>`:''}</button>`).join('')}
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){tab=b.dataset.tab;render();window.scrollTo({top:0})}});
 function groupSelect(){return `<select class="i" id="grp" aria-label="${T.group}">${S.groups.map(g=>`<option value="${g.id}" ${g.id===cur?'selected':''}>${esc(g.name)} · ${T.subjects[g.subject]}</option>`).join('')}</select>`}
-function render(){renderTabs();document.getElementById('view').innerHTML=({groups,roster,progress,plan,tasks,help})[tab]()+(LIVE&&tab==='roster'?'':`<p class="note">${T.demoNote}</p>`)}
+function render(){renderTabs();document.getElementById('view').innerHTML=({groups,roster,progress,plan,tasks,help})[tab]()+(LIVE&&(tab==='roster'||tab==='progress')?'':`<p class="note">${T.demoNote}</p>`)}
 
 // ── Экраны ──────────────────────────────────────────────────
 function groups(){const till=g=>fmtDate(g.created+g.days*864e5);
@@ -210,7 +210,7 @@ function groups(){const till=g=>fmtDate(g.created+g.days*864e5);
     <div><label class="f" for="g-days">${T.gDays}</label><select class="i" id="g-days">${[7,14,30].map(d=>`<option value="${d}" ${d===14?'selected':''}>${T.days(d)}</option>`).join('')}</select></div>
     <button class="btn lime" data-act="create">${T.create}</button></div></div>`}
 
-function progress(){const g=S.groups.find(x=>x.id===cur)||S.groups[0];if(!g)return '';const st=studentsOf(g),n=st.length;
+function progress(){if(LIVE)return liveProgress();const g=S.groups.find(x=>x.id===cur)||S.groups[0];if(!g)return '';const st=studentsOf(g),n=st.length;
   const sk=(SKILLS[g.subject]||SKILLS.python)[lang];
   const active=st.filter(s=>s.last<168).length,avg=n?Math.round(st.reduce((a,s)=>a+s.done,0)/(n*4)*100):0,stuck=st.filter(s=>s.stuck);
   const weak=sk.map((name,k)=>{const tried=st.filter(s=>s.ok[k]!==null);const p=tried.length?Math.round(tried.filter(s=>s.ok[k]).length/tried.length*100):0;return{name,p,tried:tried.length}});
@@ -280,8 +280,56 @@ const fromApi=x=>({id:x.id,name:x.full_name||'—',birth:x.birth_date,year:x.bir
   code:x.invite&&!x.invite.expired?x.invite.token.replace(/^i_/,''):null,used:x.linked?0:null,err:x.name_errors>0,live:true});
 function loadLive(){return api('GET','/curator/students?group_id='+encodeURIComponent(LIVE.gid)).then(r=>{LIVE.st[LIVE.gid]=r.students.map(fromApi)})}
 function liveDo(p,msg){return p.then(r=>{const x=r.student;if(x){const L=LIVE.st[LIVE.gid],i=L.findIndex(s=>s.id===x.id),v=fromApi(x);if(i<0)L.push(v);else L[i]=v}closeModal();render();if(msg)toast(msg);return r}).catch(e=>toast(e.message||T.errGeneric))}
-if(inTg){api('GET','/curator/groups').then(r=>{LIVE={groups:r.groups||[],gid:(r.groups&&r.groups[0]||{}).id,st:{}};
+if(inTg){api('GET','/curator/groups').then(r=>{LIVE={groups:r.groups||[],gid:(r.groups&&r.groups[0]||{}).id,st:{},pr:{}};
+  const badge=document.querySelector('.demo-badge');if(badge)badge.hidden=true; // данные настоящие — не «Демо»
   if(LIVE.gid)return loadLive().then(()=>{tab='roster';render()});tab='roster';render()}).catch(()=>{})}
+// ── Прогресс группы на настоящих данных (GET /api/curator/progress, docs/api.md п. 2) ──
+const TP={ru:{started:'начали уроки',lessonsDone:'уроков пройдено',stuck:'застряли',students:'студентов',
+  stuckTitle:'Кто застрял',stuckSub:'Урок не закончен, а попыток или подсказок уже много. Стоит написать или подойти на паре.',noStuck:'Никто не застрял — все движутся.',
+  stuckWhy:(l,a,h)=>`«${l}» — ${a} ${plural(a,['попытка','попытки','попыток'])}, ${h} ${plural(h,['подсказка','подсказки','подсказок'])}`,
+  lessonsTitle:'Уроки',lStarted:(k,n)=>`начали ${k} из ${n}`,lDone:k=>`прошли ${k}`,lFirst:(f,c)=>`самостоятельную с первой попытки: ${f} из ${c}`,
+  tableTitle:'Студенты',thDone:'Уроки',thSteps:'Шаги',thHints:'Подсказки',thInd:'Самост. с 1-й попытки',thLast:'Активность',never:'не заходил(а)',
+  demoTag:'демо — не сохраняется',loading:'Загружаем прогресс…',noLessons:'Опубликованных уроков пока нет.',noStudents:'В группе пока нет студентов.',
+  how:'Прогресс сохраняется только у студентов с согласием (а у младше 18 — с отметкой согласия родителя).'},
+ kk:{started:'сабақты бастады',lessonsDone:'сабақ өтілді',stuck:'кептеліп қалды',students:'студент',
+  stuckTitle:'Кім кептеліп қалды',stuckSub:'Сабақ аяқталмаған, ал әрекет немесе кеңес көп. Жазып немесе сабақта жақындаған жөн.',noStuck:'Ешкім кептелген жоқ — бәрі алға жылжып келеді.',
+  stuckWhy:(l,a,h)=>`«${l}» — ${a} әрекет, ${h} кеңес`,
+  lessonsTitle:'Сабақтар',lStarted:(k,n)=>`${n}-ден ${k} бастады`,lDone:k=>`${k} өтті`,lFirst:(f,c)=>`өз бетінше есепті бірінші әрекеттен: ${c}-ден ${f}`,
+  tableTitle:'Студенттер',thDone:'Сабақтар',thSteps:'Қадамдар',thHints:'Кеңестер',thInd:'Өз бетінше 1-әрекеттен',thLast:'Белсенділік',never:'кірмеген',
+  demoTag:'демо — сақталмайды',loading:'Прогресс жүктелуде…',noLessons:'Жарияланған сабақтар әзірге жоқ.',noStudents:'Топта әзірге студент жоқ.',
+  how:'Прогресс тек келісімі бар студенттерде сақталады (18-ге толмағандарда — ата-ана келісімі белгіленгенде).'}}[lang];
+function loadProgress(gid){LIVE.pr[gid]='loading';api('GET','/curator/progress?group_id='+encodeURIComponent(gid))
+  .then(r=>{LIVE.pr[gid]=r;if(tab==='progress'&&LIVE.gid===gid)render()}).catch(e=>{LIVE.pr[gid]=null;toast(e.message||T.errGeneric)})}
+function liveProgress(){
+  if(!LIVE.gid)return `<h1>${T.progressTitle}</h1><div class="card muted">${T.noGroups}</div>`;
+  const sel=`<select class="i" id="lgrp" aria-label="${T.group}">${LIVE.groups.map(x=>`<option value="${x.id}" ${x.id===LIVE.gid?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`;
+  const head=`<h1>${T.progressTitle}</h1><div class="row" style="margin-bottom:10px"><div class="grow">${sel}</div></div><p><span class="tag t-ok">● ${T.live}</span></p>`;
+  const P=LIVE.pr[LIVE.gid];
+  if(P===undefined){loadProgress(LIVE.gid)}
+  if(!P||P==='loading')return head+`<div class="card muted">${TP.loading}</div>`;
+  const L=P.lessons||[],St=P.students||[],n=St.length;
+  if(!n)return head+`<div class="card muted">${TP.noStudents}</div>`;
+  if(!L.length)return head+`<div class="card muted">${TP.noLessons}</div>`;
+  const title=id=>(L.find(l=>l.id===id)||{}).title||'—';
+  const hoursAgo=t=>t?Math.max(0,Math.round((Date.now()-Date.parse(t))/36e5)):null;
+  const rows=St.map(s=>{const ls=Object.entries(s.lessons||{});
+    const done=ls.filter(([,x])=>x.completed_at).length,steps=ls.reduce((a,[,x])=>a+(x.completed_steps||0),0),hints=ls.reduce((a,[,x])=>a+(x.hints_used||0),0);
+    const ind=ls.filter(([,x])=>x.independent&&x.independent.solved),first=ind.filter(([,x])=>x.independent.first_try).length;
+    const last=ls.map(([,x])=>x.last_activity).filter(Boolean).sort().pop()||null;
+    const stuck=ls.filter(([,x])=>!x.completed_at&&hoursAgo(x.last_activity)!==null&&hoursAgo(x.last_activity)<24*7&&((x.attempts||0)-(x.completed_steps||0)>=3||(x.hints_used||0)>=3))
+      .map(([id,x])=>TP.stuckWhy(title(id),x.attempts||0,x.hints_used||0));
+    return {s,started:ls.length>0,done,steps,hints,ind:ind.length,first,last,stuck}});
+  const stuck=rows.filter(r=>r.stuck.length);
+  const tiles=`<div class="tiles"><div class="tile"><b>${n}</b><span>${TP.students}</span></div><div class="tile"><b>${rows.filter(r=>r.started).length}</b><span>${TP.started}</span></div><div class="tile"><b>${rows.reduce((a,r)=>a+r.done,0)}</b><span>${TP.lessonsDone}</span></div><div class="tile ${stuck.length?'alert':''}"><b>${stuck.length}</b><span>${TP.stuck}</span></div></div>`;
+  const stuckCard=`<div class="card"><b>${TP.stuckTitle}</b><div class="muted">${TP.stuckSub}</div>${stuck.length?stuck.map(r=>`<div class="topic"><span class="num">!</span><div class="grow"><b>${esc(r.s.full_name)}</b>${r.stuck.map(w=>`<div class="muted">${esc(w)}</div>`).join('')}</div></div>`).join(''):`<div class="muted" style="margin-top:10px">${TP.noStuck}</div>`}</div>`;
+  const lessonsCard=`<div class="card"><b>${TP.lessonsTitle}</b>${L.map(l=>{const xs=St.map(s=>(s.lessons||{})[l.id]).filter(Boolean),c=xs.filter(x=>x.completed_at).length,
+      solved=xs.filter(x=>x.independent&&x.independent.solved),f=solved.filter(x=>x.independent.first_try).length,p=Math.round(100*xs.length/n);
+      return `<div style="margin-top:12px"><div class="row"><span class="grow">${esc(l.title)}</span><b>${p}%</b></div><div class="bar ${p<40?'low':p<70?'mid':''}"><i style="width:${p}%"></i></div><div class="muted">${TP.lStarted(xs.length,n)} · ${TP.lDone(c)}${solved.length?` · ${TP.lFirst(f,solved.length)}`:''}</div></div>`}).join('')}</div>`;
+  const table=`<div class="card"><b>${TP.tableTitle}</b><div class="table-wrap"><table><thead><tr><th>${T.thName}</th><th>${TP.thDone}</th><th>${TP.thSteps}</th><th>${TP.thHints}</th><th>${TP.thInd}</th><th>${TP.thLast}</th></tr></thead><tbody>
+    ${rows.slice().sort((a,b)=>(b.stuck.length?1:0)-(a.stuck.length?1:0)||b.steps-a.steps).map(r=>`<tr class="${r.stuck.length?'stuck':''}"><td>${esc(r.s.full_name)}${r.s.can_save_progress?'':`<div class="muted">${TP.demoTag}</div>`}</td><td>${r.done}/${L.length}</td><td>${r.steps}</td><td>${r.hints}</td><td>${r.ind?`${r.first}/${r.ind}`:'—'}</td><td class="muted">${r.last?T.ago(hoursAgo(r.last)):r.s.can_save_progress?TP.never:'—'}</td></tr>`).join('')}
+    </tbody></table></div><p class="muted" style="margin-top:10px">${TP.how}</p></div>`;
+  return head+tiles+stuckCard+lessonsCard+table}
+
 const minorOf=s=>s.minor!==undefined&&s.minor!==null?s.minor:s.birth?ageOf(s.birth)<18:false;
 const birthText=s=>s.birth?`${T.age(ageOf(s.birth))} · ${fmtBirth(s.birth)}`:s.year?T.yearBorn(s.year):'';
 function roster(){if(LIVE&&!LIVE.gid)return `<h1>${T.rosterTitle}</h1><div class="card muted">${T.noGroups}</div>`;
