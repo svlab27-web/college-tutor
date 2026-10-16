@@ -1,7 +1,8 @@
 {
   "subject": "python",
   "language": "ru",
-  "status": "review",
+  "status": "approved",
+  "approved_by": "Светлана Петухова",
   "slug": "07-f-stroki-chek-v-stolovoj",
   "title": "Напечатай чек в столовой",
   "skill": "f-строки и округление",

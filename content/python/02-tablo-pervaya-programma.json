@@ -1,7 +1,8 @@
 {
   "subject": "python",
   "language": "ru",
-  "status": "review",
+  "status": "approved",
+  "approved_by": "Светлана Петухова",
   "slug": "02-tablo-pervaya-programma",
   "title": "Выведи объявление на табло колледжа",
   "skill": "print(), строки и порядок команд",

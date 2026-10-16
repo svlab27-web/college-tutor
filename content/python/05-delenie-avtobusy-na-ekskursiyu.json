@@ -1,7 +1,8 @@
 {
   "subject": "python",
   "language": "ru",
-  "status": "review",
+  "status": "approved",
+  "approved_by": "Светлана Петухова",
   "slug": "05-delenie-avtobusy-na-ekskursiyu",
   "title": "Сколько автобусов заказать на экскурсию?",
   "skill": "Деление: /, // и %",

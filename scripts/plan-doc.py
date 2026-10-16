@@ -10,7 +10,7 @@ o = []
 w = o.append
 w(f"# {plan['title']}\n")
 w("> Документ собран из `content/plans/python-1-semestr.json` и уроков `content/python/*.json` — правки вносим в JSON, документ пересобираем: `python3 scripts/plan-doc.py .` "
-  "Статус: **на проверке у преподавателя** (`review`).\n")
+  "Статус уроков: **утверждены** (Светлана Петухова, 16.10.2026).\n")
 w(f"**Специальность:** {plan['specialty']}  \n**Курс / семестр:** {plan['course']} / {plan['semester']}  \n"
   f"**Часов:** {plan['hours_total']} ({plan['hours_per_week']} в неделю{', ' + str(plan['credits']) + ' кредита' if plan.get('credits') else ''})  \n**Итоговый контроль:** {plan['final_control']}\n")
 w(f"{plan['note']}\n")

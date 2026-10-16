@@ -1,7 +1,8 @@
 {
   "subject": "python",
   "language": "ru",
-  "status": "review",
+  "status": "approved",
+  "approved_by": "Светлана Петухова",
   "slug": "06-vvod-kalkulyator-ballov",
   "title": "Калькулятор баллов: почему сумма не та?",
   "skill": "Ввод данных: input() и преобразование типов",

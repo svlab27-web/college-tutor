@@ -1,7 +1,8 @@
 {
   "subject": "python",
   "language": "ru",
-  "status": "review",
+  "status": "approved",
+  "approved_by": "Светлана Петухова",
   "slug": "03-peremennye-transportnaya-karta",
   "title": "Посчитай баланс транспортной карты",
   "skill": "Переменные и присваивание",

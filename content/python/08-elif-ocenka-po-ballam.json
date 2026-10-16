@@ -1,7 +1,8 @@
 {
   "subject": "python",
   "language": "ru",
-  "status": "review",
+  "status": "approved",
+  "approved_by": "Светлана Петухова",
   "slug": "08-elif-ocenka-po-ballam",
   "title": "Почему за 95 баллов — «удовлетворительно»?",
   "skill": "Цепочка if / elif / else и порядок условий",

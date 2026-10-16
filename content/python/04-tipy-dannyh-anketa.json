@@ -1,7 +1,8 @@
 {
   "subject": "python",
   "language": "ru",
-  "status": "review",
+  "status": "approved",
+  "approved_by": "Светлана Петухова",
   "slug": "04-tipy-dannyh-anketa",
   "title": "Почини анкету: 17 + 1 = 171?",
   "skill": "Типы данных: строки и числа, int() и str()",
