@@ -15,7 +15,7 @@
 import { resolve } from 'node:path';
 import type postgres from 'postgres';
 import { closeDb, db } from '../api/_lib/db';
-import { loadContent, type LessonPair } from './lessons';
+import { loadContent, loadPlans, type LessonPair } from './lessons';
 
 export interface SyncReport {
   inserted: string[];
@@ -75,7 +75,10 @@ export async function syncLessons(sql: postgres.Sql, lessons: LessonPair[]): Pro
 async function main() {
   const checkOnly = process.argv.includes('--check');
   const root = resolve(process.argv.find((a) => a.startsWith('--content='))?.slice(10) ?? 'content');
-  const { lessons, errors } = loadContent(root);
+  const loaded = loadContent(root);
+  const { lessons } = loaded;
+  const plans = loadPlans(root, lessons);
+  const errors = [...loaded.errors, ...plans.errors];
   if (errors.length) {
     console.error(`Ошибки в уроках (${errors.length}) — в базу ничего не записано:`);
     for (const e of errors) console.error(`  ✗ ${e}`);
@@ -85,6 +88,10 @@ async function main() {
   console.log(`✓ Уроки проверены: ${lessons.length}, переводов: ${nT}`);
   for (const l of lessons) {
     console.log(`  ${l.base.subject}/${l.base.slug} — ${l.base.content.status}${l.translations.map((t) => `, ${t.language}: ${t.content.status}`).join('')}`);
+  }
+  for (const p of plans.plans) {
+    const w = p.content.weeks as { lessons: string[] }[];
+    console.log(`✓ План ${p.path}: недель ${w.length}, уроков в плане ${w.reduce((n, x) => n + x.lessons.length, 0)}`);
   }
   if (checkOnly) return;
 
