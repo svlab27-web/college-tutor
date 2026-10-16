@@ -14,7 +14,11 @@
 
   const inTg=!!(tg&&tg.initData);
   if(inTg&&window.MeReady&&!q.has('choose')){
+    // Пока сервер не ответил, кто вошёл, — не показываем страницу (куратор не увидит мельком экран студента)
+    const root=document.documentElement;root.style.visibility='hidden';
+    const reveal=()=>{root.style.visibility=''};setTimeout(reveal,4000); // сервер молчит — показываем демо
     window.MeReady.then(me=>{
+      if(!(me&&me.registered&&me.user&&(me.user.role==='teacher'||me.user.role==='admin')))reveal();
       if(me&&me.registered){
         const staff=me.user&&(me.user.role==='teacher'||me.user.role==='admin');
         set(staff?'teacher':'student');
