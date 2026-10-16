@@ -91,6 +91,103 @@
 - пишем `attempts.language` и `is_independent`; прогресс сохраняем, только если `can_save_progress` (согласия есть);
 - в прототипной фазе результаты из браузерной проверки помечаем отдельно (решение по #7).
 
+### Минимум к показу 16.10 — контракт
+
+Отличия от плана выше (договорились 15.10): `/api/hint` пока нет — `hints` приходят в уроке целиком, лестницу по одной держит фронт; `free_input` (код, формулы) приходит без `solution` — проверяется в браузере и в прогресс не идёт. AI-подсказок нет.
+
+Кто: любой с проверенным `initData`. Незаведённый Telegram (демо) получает уроки и проверку ответа, но ничего не сохраняется. Сохраняем попытки и прогресс, только если `can_save_progress` (как в `/api/me`). Студенту — только опубликованные уроки (`is_published`); куратору и админу — все, с `is_published: false`.
+
+Язык: `?lang=kk` → перевод из `lesson_translations`, если он `approved`; иначе основной текст. Какой язык отдан — в поле `language`.
+
+**`GET /api/lessons?lang=ru`**
+
+```json
+{
+  "can_save_progress": true,
+  "lessons": [
+    {
+      "id": "8b0e…", "subject": "python", "slug": "01-skidka-v-kafe",
+      "title": "Почини скидку в студенческом кафе", "skill": "Условия и граничные значения",
+      "minutes": 10, "language": "ru", "is_published": true, "steps_total": 4,
+      "progress": { "completed_steps": 1, "current_step": "s2", "completed_at": null }
+    }
+  ]
+}
+```
+
+`progress` — `null`, если студент урок не начинал или прогресс не сохраняется.
+
+**`GET /api/lessons/:id?lang=ru`** — урок без серверных полей + прогресс:
+
+```json
+{
+  "can_save_progress": true,
+  "lesson": {
+    "id": "8b0e…", "subject": "python", "slug": "01-skidka-v-kafe", "title": "…", "skill": "…",
+    "minutes": 10, "story": "…", "material": "…", "language": "ru", "is_published": true,
+    "steps": [
+      { "id": "s1", "title": "…", "prompt": "…", "answer_type": "choice", "options": ["…", "…"],
+        "hints": ["намёк", "вопрос", "пример"], "simple": "…" },
+      { "id": "s3", "title": "…", "prompt": "…", "code": "…", "answer_type": "choice", "options": [">", ">=", "<", "=="],
+        "checks": [{ "input": 999, "expect": 999 }], "hints": ["…"],
+        "free_input": [{ "prompt": "…", "answer_type": "code", "starter_code": "…", "tests": [{ "call": "…", "expect": 900 }] }] },
+      { "id": "s4", "title": "…", "independent": true, "prompt": "текст выбранного сервером варианта",
+        "answer_type": "choice", "options": ["…"], "number_part": { "label": "Сумма за заказ…, ₸" }, "hints": [] }
+    ]
+  },
+  "progress": {
+    "lesson_id": "8b0e…", "steps_total": 4, "completed_steps": 2, "completed": ["s1", "s2"],
+    "current_step": "s3", "completed_at": null,
+    "independent": { "solved": false, "first_try": null }
+  }
+}
+```
+
+Вырезано: `expected`, `number_part.expected`, `solution`, `variants`, `common_mistakes`. В самостоятельной задаче `prompt` / `options` / `number_part.label` — уже выбранного варианта.
+
+**`POST /api/answer`** — тело:
+
+```json
+{ "lesson_id": "8b0e…", "step_id": "s4", "request_id": "c1f5…-uuid", "hints_used": 0, "lang": "ru",
+  "answer": { "choice": 1, "number": "1 700 ₸" } }
+```
+
+`answer`: `choice` — индекс варианта (число); `number` — строка или число (`"1 700 ₸"`, `"10,5 м²"`); шаг с `number_part` — объект `{ "choice": 1, "number": "1700" }`. `request_id` — uuid, новый на каждое нажатие «Проверить» (повтор того же запроса дубля не создаёт). `hints_used` — сколько подсказок открыто на этом шаге (0–3).
+
+Ответ `200`:
+
+```json
+{
+  "correct": false,
+  "parts": { "choice": true, "number": false },
+  "feedback": "Пока не так. Возьмите подсказку — готовый ответ не дадим.",
+  "saved": true,
+  "progress": { "lesson_id": "8b0e…", "steps_total": 4, "completed_steps": 3, "completed": ["s1", "s2", "s3"],
+                "current_step": "s4", "completed_at": null, "independent": { "solved": false, "first_try": false } }
+}
+```
+
+`parts` — только у шагов с `number_part`. `saved: false` и `progress: null` — демо или нет согласий. Ошибки: `400 bad_answer` (не тот формат), `404 lesson_not_found` / `step_not_found`, `422 browser_check` (тип ответа проверяется в браузере).
+
+**`GET /api/curator/progress?group_id=`** — вкладка «Прогресс» (только чтение, доступ как у `/api/curator/students`):
+
+```json
+{
+  "group_id": "…",
+  "lessons": [{ "id": "8b0e…", "subject": "python", "slug": "01-skidka-v-kafe", "title": "…", "steps_total": 4 }],
+  "students": [
+    { "id": "…", "full_name": "Иванов Петр", "can_save_progress": false,
+      "lessons": {
+        "8b0e…": { "completed_steps": 2, "current_step": "s3", "completed_at": null,
+                   "last_activity": "2026-10-16T09:12:00Z", "attempts": 5, "hints_used": 3,
+                   "independent": { "solved": false, "first_try": null } }
+      } }
+  ]
+}
+```
+
+`lessons` у студента — только начатые уроки. `first_try` — самостоятельная решена с первой попытки (`null` — ещё не пробовал).
+
 ## 2а. Кабинет куратора (#9, часть 1)
 
 Доступ: `users.role = 'teacher'` — только группы, где он `group_members.role = 'teacher'`; `admin` — все группы колледжа. Чужая или несуществующая группа / студент — одинаково 404. Личность — только из `initData`; `telegram_user_id` наружу не отдаём. Код: `api/_lib/curator.ts`, `api/_lib/routes/curator.ts`, тесты — `tests/curator.db.test.ts`.
