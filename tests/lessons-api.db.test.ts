@@ -267,6 +267,11 @@ test('порядок уроков — по плану: неделя, номер 
   const e = list.find((l: any) => l.id === earlier);
   assert.equal(e.week, 1);
   assert.equal(e.order, 2);
+  // числами, а не строками: неделя 9 раньше недели 10
+  const w10 = await lesson('python', { ...python, slug: `aa-w10-${run}`, week: 10, order: 1 }, true);
+  const w9 = await lesson('python', { ...python, slug: `zz-w9-${run}`, week: 9, order: 1 }, true);
+  const ids2 = (await call('GET', '/api/lessons', s.tg)).body.lessons.map((l: any) => l.id);
+  assert.ok(ids2.indexOf(w9) < ids2.indexOf(w10));
 });
 
 test('без согласия на ПД (18+): не пишем', opts, async () => {

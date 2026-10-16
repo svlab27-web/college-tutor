@@ -103,20 +103,32 @@ export function publicLesson(content: Obj, variantFor: (step: Step) => number, s
 
 // ── Числа в ответе ───────────────────────────────────────────
 // Как в прототипе (app/index.html, number), строже: пробелы и неразрывные пробелы, типографский
-// минус, единицы (₸, тг, м², кв.м, мм, см, м) — только в конце строки; «1,700» и «1,700,000» —
-// разделитель тысяч; одна запятая с другим числом цифр после неё — десятичная («10,5»).
-export function parseNumber(raw: unknown): number {
-  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
-  if (typeof raw !== 'string' || raw.length > 40) return NaN;
-  let x = raw
+// минус, единицы (₸, тг, м², кв.м, мм, см, м) — только в конце строки. Запятая в русской записи —
+// десятичный знак («10,5», «0,125»). Тысячи через запятую — только «1,700,000» (две группы и больше,
+// первая не с 0). Одиночное «1,500» неоднозначно (1,5 или 1500) — даём оба прочтения, засчитываем
+// любое, что попало в допуск: верно и для денег, и для математики.
+const num = (x: string): number[] => {
+  if (x === '' || !/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(x)) return [];
+  const n = Number(x);
+  return Number.isFinite(n) ? [n] : [];
+};
+
+export function parseNumbers(raw: unknown): number[] {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? [raw] : [];
+  if (typeof raw !== 'string' || raw.length > 40) return [];
+  const x = raw
     .replace(/[\s  ]/g, '')
     .replace(/[−–]/g, '-')
     .replace(/(₸|тг\.?|кв\.?м|м\^?2|м²|мм|см|м)$/i, '');
-  if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(x)) x = x.replace(/,/g, '');
-  else if (/^[-+]?\d*,\d+$/.test(x)) x = x.replace(',', '.');
-  if (x === '' || !/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(x)) return NaN;
-  const n = Number(x);
-  return Number.isFinite(n) ? n : NaN;
+  if (/^[-+]?[1-9]\d{0,2}(,\d{3}){2,}(\.\d+)?$/.test(x)) return num(x.replace(/,/g, ''));
+  if (/^[-+]?[1-9]\d{0,2},\d{3}$/.test(x)) return [...num(x.replace(',', '.')), ...num(x.replace(',', ''))];
+  if (/^[-+]?\d*,\d+$/.test(x)) return num(x.replace(',', '.'));
+  return num(x);
+}
+
+// Первое прочтение (для «1,500» — десятичное 1.5); NaN — не число
+export function parseNumber(raw: unknown): number {
+  return parseNumbers(raw)[0] ?? NaN;
 }
 
 function numberExpected(v: unknown): NumberExpected | null {
@@ -125,7 +137,8 @@ function numberExpected(v: unknown): NumberExpected | null {
     : null;
 }
 
-const close = (n: number, e: NumberExpected) => Number.isFinite(n) && Math.abs(n - e.value) <= e.tolerance + 1e-9;
+// Засчитываем, если в допуск попало любое прочтение числа (см. parseNumbers)
+const close = (ns: number[], e: NumberExpected) => ns.some((n) => Math.abs(n - e.value) <= e.tolerance + 1e-9);
 
 // ── Проверка ответа ──────────────────────────────────────────
 const TEXT = {
@@ -190,12 +203,12 @@ export function checkAnswer(step: Step, variant: number, answer: unknown, lang: 
       if (!isObj(answer)) throw new BadAnswer('choice+number');
       const index = choiceIndex(answer.choice, options.length);
       const choice = index === expected;
-      const n = parseNumber(answer.number);
+      const n = parseNumbers(answer.number);
       const number = close(n, npExpected);
       const correct = choice && number;
       const feedback = correct
         ? t.correct
-        : (!choice && mistake(step, String(index))) || (!Number.isFinite(n) ? t.notNumber : wrong);
+        : (!choice && mistake(step, String(index))) || (!n.length ? t.notNumber : wrong);
       return { correct, parts: { choice, number }, feedback, stored: { choice: index, number: clip(answer.number) } };
     }
     const index = choiceIndex(answer, options.length);
@@ -208,23 +221,23 @@ export function checkAnswer(step: Step, variant: number, answer: unknown, lang: 
     if (!expected) throw new BrowserCheck(step.answer_type);
     if (npExpected) {
       if (!isObj(answer)) throw new BadAnswer('number+part');
-      const n = parseNumber(answer.number);
-      const p = parseNumber(answer.part);
+      const n = parseNumbers(answer.number);
+      const p = parseNumbers(answer.part);
       const number = close(n, expected);
       const part = close(p, npExpected);
       const correct = number && part;
       const feedback = correct
         ? t.correct
-        : !Number.isFinite(n) || !Number.isFinite(p)
+        : !n.length || !p.length
           ? t.notNumber
-          : (!number && mistake(step, String(n))) || wrong;
+          : (!number && mistake(step, String(n[0]))) || wrong;
       return { correct, parts: { number, part }, feedback, stored: { number: clip(answer.number), part: clip(answer.part) } };
     }
-    const n = parseNumber(answer);
+    const n = parseNumbers(answer);
     const stored = { number: clip(answer) };
-    if (!Number.isFinite(n)) return { correct: false, feedback: t.notNumber, stored };
+    if (!n.length) return { correct: false, feedback: t.notNumber, stored };
     const correct = close(n, expected);
-    return { correct, feedback: correct ? t.correct : mistake(step, String(n)) ?? wrong, stored };
+    return { correct, feedback: correct ? t.correct : mistake(step, String(n[0])) ?? wrong, stored };
   }
 
   // formula / code / text — проверяет браузер (минимум к показу)
