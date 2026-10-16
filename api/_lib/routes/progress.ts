@@ -17,10 +17,18 @@ export async function getCuratorProgress(req: Request): Promise<Response> {
   const groupId = await requireGroup(sql, staff, new URL(req.url).searchParams.get('group_id'));
 
   // Куратор видит и неопубликованные уроки — как в /api/lessons
-  const lessons = await sql<{ id: string; subject: string; slug: string; title: string; content: Record<string, unknown> }[]>`
+  const rows = await sql<{ id: string; subject: string; slug: string; title: string; content: Record<string, unknown> }[]>`
     select id, subject_id as subject, slug, title, content
-      from (select distinct on (subject_id, slug) * from lessons order by subject_id, slug, version desc) l
-     order by subject_id, slug`;
+      from (select distinct on (subject_id, slug) * from lessons order by subject_id, slug, version desc) l`;
+  // Порядок плана семестра — как в /api/lessons: предмет, неделя, номер в неделе, slug
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 999);
+  const lessons = [...rows].sort(
+    (a, b) =>
+      a.subject.localeCompare(b.subject) ||
+      num(a.content.week) - num(b.content.week) ||
+      num(a.content.order) - num(b.content.order) ||
+      a.slug.localeCompare(b.slug),
+  );
 
   const students = await sql<
     { id: string; full_name: string | null; birth_date: string | null; birth_year: number | null; consent: boolean; parental: boolean }[]

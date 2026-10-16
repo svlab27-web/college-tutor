@@ -140,7 +140,7 @@ test('урок для браузера: без эталонов; неопубл�
   assert.equal(r.status, 200);
   assert.equal(r.body.lesson.language, 'ru');
   const text = JSON.stringify(r.body.lesson);
-  for (const key of ['"solution"', '"variants"', '"common_mistakes"']) assert.ok(!text.includes(key), key);
+  for (const key of ['"solution"', '"variants"', '"common_mistakes"', '"checks"', '"free_input"']) assert.ok(!text.includes(key), key);
   for (const st of r.body.lesson.steps) assert.equal(st.expected, undefined);
   assert.equal(r.body.progress, null);
   assert.equal((await call('GET', `/api/lessons/${hiddenId}`, s.tg)).status, 404);
@@ -211,6 +211,62 @@ test('младше 18 без согласия родителя: проверка
   assert.equal(r.body.progress, null);
   assert.equal(await attemptsOf(s.id), 0);
   assert.equal((await call('GET', '/api/lessons', s.tg)).body.can_save_progress, false);
+});
+
+test('checks и free_input — только после верного ответа: в ответе reveal и потом в уроке', opts, async () => {
+  const s = await student();
+  const wrong = await answer(s.tg, pyId, 's3', 0);
+  assert.equal(wrong.body.correct, false);
+  assert.equal(wrong.body.reveal, undefined);
+  const ok = await answer(s.tg, pyId, 's3', 1);
+  assert.ok(Array.isArray(ok.body.reveal.checks));
+  assert.ok(Array.isArray(ok.body.reveal.free_input));
+  assert.equal(ok.body.reveal.free_input[0].solution, undefined);
+  const lesson = (await call('GET', `/api/lessons/${pyId}`, s.tg)).body.lesson;
+  const s3 = lesson.steps.find((x: any) => x.id === 's3');
+  assert.ok(Array.isArray(s3.checks) && Array.isArray(s3.free_input));
+  assert.equal(lesson.steps.find((x: any) => x.id === 's2').free_input, undefined);
+  // демо тоже получает reveal после верного ответа (ничего не пишем)
+  assert.ok(Array.isArray((await answer(++nextTg, pyId, 's3', 1)).body.reveal.checks));
+});
+
+test('повтор request_id: тот же ответ — прежний результат; другой ответ или урок — 409, не 500', opts, async () => {
+  const s = await student();
+  const id = `same-${run}`;
+  const first = await answer(s.tg, pyId, 's1', 0, { request_id: id });
+  assert.equal(first.body.correct, true);
+  const again = await answer(s.tg, pyId, 's1', 0, { request_id: id });
+  assert.equal(again.status, 200);
+  assert.equal(again.body.correct, true);
+  assert.equal(again.body.progress.completed_steps, 1);
+  assert.equal((await answer(s.tg, pyId, 's1', 1, { request_id: id })).status, 409);
+  assert.equal((await answer(s.tg, mathId, 's1', 1, { request_id: id })).status, 409);
+  assert.equal(await attemptsOf(s.id), 1);
+});
+
+test('заведённый без согласий: самостоятельную не оцениваем (нельзя перебрать до согласия)', opts, async () => {
+  const s = await student({ date: '2012-03-03' });
+  const s4 = stepsOf(python).find((x) => x.id === 's4')!;
+  const r = await answer(s.tg, pyId, 's4', rightAnswer(s4, s.id, pyId));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.correct, null);
+  assert.equal(r.body.saved, false);
+  assert.match(r.body.feedback, /когда включится сохранение/);
+  // демо (Telegram не заведён) — проверяем как обычно
+  const tg = ++nextTg;
+  assert.equal(typeof (await answer(tg, pyId, 's4', rightAnswer(s4, `tg:${tg}`, pyId))).body.correct, 'boolean');
+});
+
+test('порядок уроков — по плану: неделя, номер в неделе', opts, async () => {
+  const later = await lesson('python', { ...python, slug: `aa-later-${run}`, week: 3, order: 1 }, true);
+  const earlier = await lesson('python', { ...python, slug: `zz-earlier-${run}`, week: 1, order: 2 }, true);
+  const s = await student();
+  const list = (await call('GET', '/api/lessons', s.tg)).body.lessons;
+  const ids = list.map((l: any) => l.id);
+  assert.ok(ids.indexOf(earlier) < ids.indexOf(later));
+  const e = list.find((l: any) => l.id === earlier);
+  assert.equal(e.week, 1);
+  assert.equal(e.order, 2);
 });
 
 test('без согласия на ПД (18+): не пишем', opts, async () => {

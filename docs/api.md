@@ -93,7 +93,7 @@
 
 ### Минимум к показу 16.10 — контракт
 
-Отличия от плана выше (договорились 15.10): `/api/hint` пока нет — `hints` приходят в уроке целиком, лестницу по одной держит фронт; `free_input` (код, формулы) приходит без `solution` — проверяется в браузере и в прогресс не идёт. AI-подсказок нет.
+Отличия от плана выше (договорились 15.10, уточнено по ревью #48): `/api/hint` пока нет — `hints` приходят в уроке целиком, лестницу по одной держит фронт. `checks` (таблица проверки) и `free_input` (код, формулы) выдают ответ шага, поэтому приходят **только после верного ответа**: в ответе `POST /api/answer` (поле `reveal`) и потом в `GET /api/lessons/:id` у пройденных шагов; `free_input` — без `solution`, проверяется в браузере и в прогресс не идёт, в самостоятельной не приходит вовсе. AI-подсказок нет.
 
 Кто: любой с проверенным `initData`. Незаведённый Telegram (демо) получает уроки и проверку ответа, но ничего не сохраняется. Сохраняем попытки и прогресс, только если `can_save_progress` (как в `/api/me`). Студенту — только опубликованные уроки (`is_published`); куратору и админу — все, с `is_published: false`.
 
@@ -108,7 +108,7 @@
     {
       "id": "8b0e…", "subject": "python", "slug": "01-skidka-v-kafe",
       "title": "Почини скидку в студенческом кафе", "skill": "Условия и граничные значения",
-      "minutes": 10, "language": "ru", "is_published": true, "steps_total": 4,
+      "minutes": 10, "week": 4, "order": 1, "language": "ru", "is_published": true, "steps_total": 4,
       "progress": { "completed_steps": 1, "current_step": "s2", "completed_at": null }
     }
   ]
@@ -129,8 +129,8 @@
       { "id": "s1", "title": "…", "prompt": "…", "answer_type": "choice", "options": ["…", "…"],
         "hints": ["намёк", "вопрос", "пример"], "simple": "…" },
       { "id": "s3", "title": "…", "prompt": "…", "code": "…", "answer_type": "choice", "options": [">", ">=", "<", "=="],
-        "checks": [{ "input": 999, "expect": 999 }], "hints": ["…"],
-        "free_input": [{ "prompt": "…", "answer_type": "code", "starter_code": "…", "tests": [{ "call": "…", "expect": 900 }] }] },
+        "hints": ["…"],
+        "checks": [{ "input": 999, "expect": 999 }], "free_input": [{ "prompt": "…", "answer_type": "code", "starter_code": "…", "tests": [{ "call": "…", "expect": 900 }] }] },
       { "id": "s4", "title": "…", "independent": true, "prompt": "текст выбранного сервером варианта",
         "answer_type": "choice", "options": ["…"], "number_part": { "label": "Сумма за заказ…, ₸" }, "hints": [] }
     ]
@@ -143,7 +143,7 @@
 }
 ```
 
-Вырезано: `expected`, `number_part.expected`, `solution`, `variants`, `common_mistakes`. В самостоятельной задаче `prompt` / `options` / `number_part.label` — уже выбранного варианта.
+Вырезано: `expected`, `number_part.expected`, `solution`, `variants`, `common_mistakes`; `checks` и `free_input` — у ещё не пройденных шагов (в примере s3 уже пройден). В самостоятельной задаче `prompt` / `options` / `number_part.label` — уже выбранного варианта. Список уроков — в порядке плана: предмет, `week`, `order`.
 
 **`POST /api/answer`** — тело:
 
@@ -152,7 +152,7 @@
   "answer": { "choice": 1, "number": "1 700 ₸" } }
 ```
 
-`answer`: `choice` — индекс варианта (число); `number` — строка или число (`"1 700 ₸"`, `"10,5 м²"`); шаг с `number_part` — объект `{ "choice": 1, "number": "1700" }`. `request_id` — uuid, новый на каждое нажатие «Проверить» (повтор того же запроса дубля не создаёт). `hints_used` — сколько подсказок открыто на этом шаге (0–3).
+`answer`: `choice` — индекс варианта (число); `number` — строка или число (`"1 700 ₸"`, `"10,5 м²"`, `"1,700"`); шаг `choice` с `number_part` — `{ "choice": 1, "number": "1700" }`; шаг `number` с `number_part` — `{ "number": "3", "part": "5" }`. `request_id` — uuid, новый на каждое нажатие «Проверить»: повтор того же запроса возвращает прежний результат, тот же `request_id` с другим ответом или шагом — `409 request_reused`. `hints_used` — сколько подсказок открыто на этом шаге (0–3).
 
 Ответ `200`:
 
@@ -167,7 +167,7 @@
 }
 ```
 
-`parts` — только у шагов с `number_part`. `saved: false` и `progress: null` — демо или нет согласий. Ошибки: `400 bad_answer` (не тот формат), `404 lesson_not_found` / `step_not_found`, `422 browser_check` (тип ответа проверяется в браузере).
+`parts` — только у шагов с `number_part`: `{ choice, number }` или `{ number, part }`. `reveal` — `{ checks?, free_input? }`, только при `correct: true`. `saved: false` и `progress: null` — демо или нет согласий. Самостоятельная у заведённого студента без согласий — `correct: null` и текст «проверим, когда включится сохранение» (чтобы нельзя было перебрать ответ до согласия); демо проверяется как обычно. Ошибки: `400 bad_answer` (не тот формат), `404 lesson_not_found` / `step_not_found`, `409 request_reused`, `422 browser_check` (тип ответа проверяется в браузере).
 
 **`GET /api/curator/progress?group_id=`** — вкладка «Прогресс» (только чтение, доступ как у `/api/curator/students`):
 

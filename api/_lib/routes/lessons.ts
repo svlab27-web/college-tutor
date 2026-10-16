@@ -1,7 +1,7 @@
 // Уроки, ответы, прогресс (#6) — минимум к показу 16.10, контракт в docs/api.md, п. 2.
 //
-// GET  /api/lessons?lang=          — уроки (студенту — опубликованные) + прогресс
-// GET  /api/lessons/:id?lang=      — урок без эталонов + прогресс
+// GET  /api/lessons?lang=          — уроки (студенту — опубликованные) в порядке плана + прогресс
+// GET  /api/lessons/:id?lang=      — урок без эталонов + прогресс; checks / free_input — у пройденных шагов
 // POST /api/answer                 — проверить ответ на сервере; попытку и прогресс пишем,
 //                                    только если can_save_progress (согласия есть)
 //
@@ -11,9 +11,11 @@ import type postgres from 'postgres';
 import { db } from '../db';
 import { HttpError, json } from '../http';
 import {
+  afterSolved,
   BadAnswer,
   BrowserCheck,
   checkAnswer,
+  hiddenFeedback,
   publicLesson,
   stepsOf,
   summarize,
@@ -30,6 +32,9 @@ type Obj = Record<string, unknown>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
+
+// jsonb хранит ключи в своём порядке — сравниваем ответы без учёта порядка ключей
+const canon = (o: Obj) => JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
 
 interface Viewer {
   telegramUserId: number;
@@ -72,26 +77,43 @@ interface LessonRow {
   translation: Obj | null;
 }
 
+// Порядок плана семестра: предмет, неделя, номер в неделе, slug (#49: week / order в уроке)
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 999);
+function byPlan(a: LessonRow, b: LessonRow): number {
+  return (
+    a.subject_id.localeCompare(b.subject_id) ||
+    num(a.content.week) - num(b.content.week) ||
+    num(a.content.order) - num(b.content.order) ||
+    a.slug.localeCompare(b.slug)
+  );
+}
+
 // Последняя версия каждого урока; перевод — только утверждённый
 async function loadLessons(sql: Sql, v: Viewer, lang: Lang, id?: string): Promise<LessonRow[]> {
-  return sql<LessonRow[]>`
+  const rows = await sql<LessonRow[]>`
     select l.id, l.subject_id, l.slug, l.title, l.is_published, l.content,
            (select t.content from lesson_translations t
              where t.lesson_id = l.id and t.language = ${lang} and t.status = 'approved') as translation
       from (select distinct on (subject_id, slug) * from lessons order by subject_id, slug, version desc) l
      where (${v.staff} or l.is_published)
-       and (${id ?? null}::uuid is null or l.id = ${id ?? null}::uuid)
-     order by l.subject_id, l.slug`;
+       and (${id ?? null}::uuid is null or l.id = ${id ?? null}::uuid)`;
+  return [...rows].sort(byPlan);
 }
 
 function contentOf(row: LessonRow): { content: Obj; language: Lang } {
   return row.translation ? { content: row.translation, language: 'kk' } : { content: row.content, language: 'ru' };
 }
 
+async function solvedSteps(sql: Sql, userId: string, lessonId: string): Promise<Set<string>> {
+  const rows = await sql<{ step_id: string }[]>`
+    select distinct step_id from attempts where user_id = ${userId} and lesson_id = ${lessonId} and is_correct`;
+  return new Set(rows.map((r) => r.step_id));
+}
+
 async function lessonProgress(sql: Sql, userId: string, lessonId: string, content: Obj): Promise<LessonProgress | null> {
   const steps = stepsOf(content);
-  const rows = await sql<{ step_id: string; solved: boolean; is_independent: boolean; first_correct: boolean }[]>`
-    select step_id, bool_or(is_correct) as solved, bool_or(is_independent) as is_independent,
+  const rows = await sql<{ step_id: string; solved: boolean; first_correct: boolean }[]>`
+    select step_id, bool_or(is_correct) as solved,
            (array_agg(is_correct order by created_at))[1] as first_correct
       from attempts where user_id = ${userId} and lesson_id = ${lessonId}
      group by step_id`;
@@ -134,6 +156,8 @@ export async function getLessons(req: Request): Promise<Response> {
       title: typeof content.title === 'string' ? content.title : row.title,
       skill: content.skill ?? null,
       minutes: content.minutes ?? null,
+      week: content.week ?? null,
+      order: content.order ?? null,
       language,
       is_published: row.is_published,
       steps_total: stepsOf(content).length,
@@ -168,9 +192,10 @@ export async function getLesson(req: Request): Promise<Response> {
   const row = await requireLesson(sql, v, langOf(req), lessonIdFrom(req));
   const { content, language } = contentOf(row);
   const seed = seedOf(v);
+  const solved = v.user ? await solvedSteps(sql, v.user.id, row.id) : new Set<string>();
   const lesson = {
     id: row.id,
-    ...publicLesson(content, (s) => variantIndex(seed, row.id, s)),
+    ...publicLesson(content, (s) => variantIndex(seed, row.id, s), solved),
     language,
     is_published: row.is_published,
   };
@@ -190,6 +215,7 @@ export async function postAnswer(req: Request): Promise<Response> {
   if (typeof body.request_id !== 'string' || !REQUEST_ID.test(body.request_id)) {
     throw new HttpError(400, 'bad_request_id', 'Обновите приложение и попробуйте ещё раз.');
   }
+  const requestId = body.request_id;
 
   const variant = variantIndex(seedOf(v), row.id, step);
   let result;
@@ -200,20 +226,40 @@ export async function postAnswer(req: Request): Promise<Response> {
     if (e instanceof BrowserCheck) throw new HttpError(422, 'browser_check', 'Этот ответ проверяется в приложении.');
     throw e;
   }
+  const { stored, ...check } = result;
+  // Таблица проверки и «напиши код» — только после верного ответа (они выдают ответ шага)
+  const reveal = check.correct ? afterSolved(step) : undefined;
 
-  if (!v.user || !v.canSave) return json(200, { ...result, saved: false, progress: null });
+  if (!v.user || !v.canSave) {
+    // Заведённый студент без согласий не должен перебирать самостоятельную: после согласия первая
+    // записанная попытка засчиталась бы «с первой попытки». Демо (Telegram не заведён) — проверяем.
+    if (v.user && step.independent) {
+      return json(200, { correct: null, feedback: hiddenFeedback(language), saved: false, progress: null });
+    }
+    return json(200, { ...check, ...(reveal ? { reveal } : {}), saved: false, progress: null });
+  }
 
   const userId = v.user.id;
   const hints = step.independent ? 0 : Math.min(3, Math.max(0, Number.isInteger(body.hints_used) ? (body.hints_used as number) : 0));
-  const progress = await sql.begin(async (tx) => {
+  const outcome = await sql.begin(async (tx) => {
     // Ответы одного студента по одному уроку — по очереди, чтобы прогресс не считался по устаревшим попыткам
     await tx`select pg_advisory_xact_lock(hashtextextended(${`${userId}:${row.id}`}, 0))`;
-    // Повтор того же нажатия (тот же request_id) — без второй попытки
-    await tx`
+    const inserted = await tx<{ id: string }[]>`
       insert into attempts (user_id, lesson_id, step_id, answer, is_correct, hints_used, is_independent, request_id, language)
-      values (${userId}, ${row.id}, ${step.id}, ${tx.json(body.answer as never)}, ${result.correct},
-              ${hints}, ${Boolean(step.independent)}, ${body.request_id as string}, ${language})
-      on conflict (user_id, request_id) do nothing`;
+      values (${userId}, ${row.id}, ${step.id}, ${tx.json(stored as never)}, ${check.correct},
+              ${hints}, ${Boolean(step.independent)}, ${requestId}, ${language})
+      on conflict (user_id, request_id) do nothing
+      returning id`;
+    if (!inserted.length) {
+      // Повтор того же нажатия: отвечаем по записанной попытке. Тот же request_id для другого
+      // шага или с другим ответом — ошибка клиента, а не новая попытка.
+      const [prev] = await tx<{ lesson_id: string; step_id: string; answer: Obj; is_correct: boolean }[]>`
+        select lesson_id, step_id, answer, is_correct from attempts where user_id = ${userId} and request_id = ${requestId}`;
+      if (!prev || prev.lesson_id !== row.id || prev.step_id !== step.id || canon(prev.answer) !== canon(stored)) {
+        throw new HttpError(409, 'request_reused', 'Обновите приложение и попробуйте ещё раз.');
+      }
+      return { correct: prev.is_correct, progress: (await lessonProgress(tx, userId, row.id, row.content))! };
+    }
     // Прогресс считаем по основному тексту урока (структура перевода с ним совпадает, 003)
     const p = (await lessonProgress(tx, userId, row.id, row.content))!;
     await tx`
@@ -225,7 +271,7 @@ export async function postAnswer(req: Request): Promise<Response> {
             completed_steps = excluded.completed_steps,
             completed_at = coalesce(progress.completed_at, excluded.completed_at),
             updated_at = now()`;
-    return (await lessonProgress(tx, userId, row.id, row.content))!;
+    return { correct: check.correct, progress: (await lessonProgress(tx, userId, row.id, row.content))! };
   });
-  return json(200, { ...result, saved: true, progress });
+  return json(200, { ...check, ...(reveal ? { reveal } : {}), saved: true, progress: outcome.progress });
 }
