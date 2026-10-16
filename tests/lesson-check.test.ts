@@ -38,11 +38,16 @@ test('числа: пробелы, ₸, м², запятая, тысячи, ти�
   assert.equal(parseNumber('1 700тг'), 1700);
   assert.equal(parseNumber('10,5 м²'), 10.5);
   assert.equal(parseNumber('450 кв.м'), 450);
-  assert.equal(parseNumber('1,700,000'), 1700000);
-  assert.deepEqual(parseNumbers('1,700'), [1.7, 1700]); // одиночная группа — оба прочтения
-  assert.deepEqual(parseNumbers('0,125'), [0.125]); // с 0 — только дробь
-  assert.deepEqual(parseNumbers('0,001'), [0.001]);
-  assert.deepEqual(parseNumbers('10,5'), [10.5]);
+  // Решение Светланы: запятая — всегда десятичный знак, тысячи — только пробелами
+  assert.equal(parseNumber('1,5'), 1.5);
+  assert.equal(parseNumber('0,125'), 0.125);
+  assert.equal(parseNumber('1,500'), 1.5);
+  assert.equal(parseNumber('10,005'), 10.005);
+  assert.equal(parseNumber('1 000,5'), 1000.5); // узкий пробел между тысячами
+  assert.equal(parseNumber('1 700'), 1700);
+  assert.deepEqual(parseNumbers('1,700'), [1.7]);
+  assert.ok(Number.isNaN(parseNumber('1,700,000')), 'две запятые — не число');
+  assert.ok(Number.isNaN(parseNumber('1,2.3')), 'запятая и точка — не число');
   assert.equal(parseNumber('1.700'), 1.7);
   assert.equal(parseNumber('−5'), -5);
   assert.equal(parseNumber(12), 12);
@@ -70,7 +75,7 @@ test('number с допуском и частой ошибкой; не число
   const s3 = step(math, 's3');
   assert.equal(checkAnswer(s3, 0, '10', 'ru').correct, true);
   assert.equal(checkAnswer(s3, 0, '10,01', 'ru').correct, true);
-  assert.equal(checkAnswer(s3, 0, '10,005', 'ru').correct, true); // «10,005» = 10.005 или 10005 — дробное в допуске
+  assert.equal(checkAnswer(s3, 0, '10,005', 'ru').correct, true); // «10,005» = 10.005 — в допуске
   assert.equal(checkAnswer(s3, 0, '10.5', 'ru').correct, false);
   assert.match(checkAnswer(s3, 0, '100', 'ru').feedback, /площадь/);
   const nan = checkAnswer(s3, 0, 'не знаю', 'ru');
@@ -107,15 +112,15 @@ test('number + number_part: { number, part }, обе части и вариан�
   assert.throws(() => checkAnswer(rooms, 0, '3', 'ru'), BadAnswer);
 });
 
-test('«1,500» засчитывается и как деньги (1500), и как дробь (1,5); «0,125» — только дробь', () => {
+test('запятая — десятичная: «1,5» = 1.5, «0,125» = 0.125; тысячи — пробелами; две запятые — «введите число»', () => {
   const money: Step = { id: 'm', title: 't', prompt: 'p', answer_type: 'number', expected: { value: 1500, tolerance: 0 } };
   const frac: Step = { id: 'f', title: 't', prompt: 'p', answer_type: 'number', expected: { value: 1.5, tolerance: 0 } };
   const small: Step = { id: 's', title: 't', prompt: 'p', answer_type: 'number', expected: { value: 0.125, tolerance: 0 } };
-  assert.equal(checkAnswer(money, 0, '1,500', 'ru').correct, true);
-  assert.equal(checkAnswer(frac, 0, '1,500', 'ru').correct, true);
+  assert.equal(checkAnswer(frac, 0, '1,5', 'ru').correct, true);
   assert.equal(checkAnswer(small, 0, '0,125', 'ru').correct, true);
-  assert.equal(checkAnswer(money, 0, '1,500,000', 'ru').correct, false);
-  assert.equal(checkAnswer({ ...money, expected: { value: 1500000, tolerance: 0 } }, 0, '1,500,000', 'ru').correct, true);
+  assert.equal(checkAnswer(money, 0, '1 500', 'ru').correct, true);
+  assert.equal(checkAnswer(money, 0, '1,500', 'ru').correct, false); // это 1,5
+  assert.match(checkAnswer(money, 0, '1,500,000', 'ru').feedback, /Введите число/);
 });
 
 test('formula / code — BrowserCheck', () => {
