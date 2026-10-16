@@ -20,13 +20,19 @@ if m:
     for line in m["lines"]:
         w(f"- {line}")
     w(f"\n**Проект.** {m['project']}\n")
+    if m.get("core"):
+        w(f"**Ядро и «по выбору».** {m['core']}\n")
     w(f"**Задачи.** {m['context']}\n")
 w("## 1. План семестра (КТП)\n")
-w("| Нед. | Тема | Часы | Студент знает | Студент умеет | Практическая работа | Проект | Повторяем недели | Уроки в сервисе |")
+w("| Нед. | Тема | Часы | Студент знает | Студент умеет | Практическая работа | Проект (дома) | Повторяем недели | Уроки в сервисе |")
 w("|---|---|---|---|---|---|---|---|---|")
 for x in plan["weeks"]:
     les = "<br>".join(f"{L[s]['title']} (`{s}`)" for s in x["lessons"]) or "— (готовим по ходу семестра)"
     topic = x["topic"].replace(x["control"], f"**{x['control']}**") if x.get("control") else x["topic"]
+    if x.get("hours_split"):
+        topic += f" <br>*{x['hours_split']}*"
+    if x.get("optional"):
+        topic += "<br>Углублённо / по выбору: " + "; ".join(x["optional"])
     rev = ", ".join(map(str, x.get("review", []))) or "—"
     w(f"| {x['week']} | {topic} | {x['hours']} | {'; '.join(x['know'])} | {'; '.join(x['can'])} | {x.get('practice', '—')} | {x.get('project', '—')} | {rev} | {les} |")
 w("")
