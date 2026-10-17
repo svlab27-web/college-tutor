@@ -1,7 +1,7 @@
-// Схема 007 (сотрудники, роли, основа этапа А, #63) на настоящем Postgres с миграциями 001–007.
+// Схема 007 (ссылки сотрудников, роли, основа этапа А, #63) на настоящем Postgres с миграциями 001–007.
 // Запускается, только если задан TEST_DATABASE_URL (в CI — чистая база в контейнере).
 // Никогда не указывайте здесь рабочую базу: тест создаёт свои группы и пользователей.
-// Проверяем ограничения самой базы; вход и права в api/ — отдельные тесты к следующему PR.
+// Проверяем ограничения самой базы; вход сотрудника и права в api/ — тесты к следующему PR.
 
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
@@ -9,7 +9,6 @@ import { closeDb, db } from '../api/_lib/db';
 
 const url = process.env.TEST_DATABASE_URL;
 const opts = { skip: url ? false : 'нет TEST_DATABASE_URL' };
-const HASH = 'scrypt$16384$8$1$c29sdA==$aGFzaA=='; // формат, не настоящий пароль
 let groupId = '';
 let teacherId = '';
 let n = 0;
@@ -32,10 +31,6 @@ async function person(role: 'student' | 'teacher' | 'admin'): Promise<string> {
   return id;
 }
 
-function login(): string {
-  return `t${Date.now() % 1_000_000}_${++n}`;
-}
-
 function rejectsWith(p: Promise<unknown>, code: string, constraint: string) {
   return assert.rejects(p, (e: { code?: string; constraint_name?: string }) => {
     assert.equal(e.code, code);
@@ -44,8 +39,8 @@ function rejectsWith(p: Promise<unknown>, code: string, constraint: string) {
   });
 }
 
-function account(userId: string, l: string, hash = HASH) {
-  return db()`insert into staff_accounts (user_id, login, password_hash) values (${userId}, ${l}, ${hash})`;
+function token(): string {
+  return `s_test${Date.now()}x${++n}`;
 }
 
 async function topic(o: { status?: string; approvedBy?: string | null } = {}): Promise<string> {
@@ -57,40 +52,52 @@ async function topic(o: { status?: string; approvedBy?: string | null } = {}): P
   return id;
 }
 
-// ── Учётные записи ───────────────────────────────────────────
+// ── Ссылки сотрудников ───────────────────────────────────────
 
-test('учётная запись: по умолчанию временный пароль, попыток 0', opts, async () => {
+// Срок считаем от часов приложения, created_at — от часов базы: «47 ч» с запасом укладывается в 48 ч
+function staffInvite(userId: string, o: { group?: string | null; hours?: number | null } = {}) {
+  const hours = o.hours === undefined ? 47 : o.hours;
+  const expiresAt = hours === null ? null : new Date(Date.now() + hours * 3_600_000);
+  return db()`
+    insert into invites (token, group_id, role, user_id, expires_at)
+    values (${token()}, ${o.group ?? null}, 'staff', ${userId}, ${expiresAt})`;
+}
+
+test('ссылка сотрудника: без группы, срок до 48 ч', opts, async () => {
   const id = await person('teacher');
-  await account(id, login());
-  const [row] = await db()<{ must_change_password: boolean; failed_attempts: number; disabled_at: Date | null }[]>`
-    select must_change_password, failed_attempts, disabled_at from staff_accounts where user_id = ${id}`;
-  assert.deepEqual(row, { must_change_password: true, failed_attempts: 0, disabled_at: null });
+  await staffInvite(id);
+  const [row] = await db()<{ group_id: string | null; role: string }[]>`
+    select group_id, role from invites where user_id = ${id}`;
+  assert.deepEqual(row, { group_id: null, role: 'staff' });
 });
 
-test('логин уникален', opts, async () => {
-  const l = login();
-  await account(await person('teacher'), l);
-  await rejectsWith(account(await person('teacher'), l), '23505', 'staff_accounts_login');
+test('ссылка сотрудника — без группы; ссылка студента — только с группой', opts, async () => {
+  await rejectsWith(staffInvite(await person('teacher'), { group: groupId }), '23514', 'invites_staff_no_group');
+  await rejectsWith(
+    db()`insert into invites (token, role, user_id) values (${token()}, 'student', ${await person('student')})`,
+    '23514', 'invites_group_required');
 });
 
-test('логин — только строчные, 3–32 символа', opts, async () => {
-  for (const bad of ['Ivanova', 'ab', '-abc', 'иванова', 'a'.repeat(33), 'ab c']) {
-    await rejectsWith(account(await person('teacher'), bad), '23514', 'staff_accounts_login_format');
-  }
+test('ссылка сотрудника — всегда со сроком и не дольше 48 ч', opts, async () => {
+  await rejectsWith(staffInvite(await person('teacher'), { hours: 72 }), '23514', 'invites_staff_48h');
+  await rejectsWith(staffInvite(await person('teacher'), { hours: null }), '23514', 'invites_teacher_expires');
 });
 
-test('пароль — только хеш scrypt', opts, async () => {
-  await rejectsWith(account(await person('teacher'), login(), 'qwerty123'), '23514', 'staff_accounts_hash_format');
+test('ссылку сотрудника нельзя выдать студенту', opts, async () => {
+  await rejectsWith(staffInvite(await person('student')), '23514', 'invites_staff_not_student');
 });
 
-test('учётную запись нельзя завести на студента', opts, async () => {
-  await rejectsWith(account(await person('student'), login()), '23514', 'staff_accounts_not_student');
-});
-
-test('сотрудника с учётной записью нельзя удалить — только disabled_at', opts, async () => {
+test('у сотрудника одна действующая ссылка', opts, async () => {
   const id = await person('teacher');
-  await account(id, login());
-  await assert.rejects(db()`delete from users where id = ${id}`, (e: { code?: string }) => e.code === '23503');
+  await staffInvite(id);
+  await rejectsWith(staffInvite(id), '23505', 'invites_one_active');
+});
+
+test('уволенного сотрудника не удаляем — ставим disabled_at', opts, async () => {
+  const id = await person('teacher');
+  await db()`update users set disabled_at = now(), telegram_user_id = null where id = ${id}`;
+  const [row] = await db()<{ disabled: boolean }[]>`select disabled_at is not null as disabled from users where id = ${id}`;
+  assert.equal(row.disabled, true);
 });
 
 // ── Роли и назначения ────────────────────────────────────────
@@ -184,7 +191,7 @@ test('RLS включён на всех новых таблицах', opts, async
   const rows = await db()<{ relname: string; relrowsecurity: boolean }[]>`
     select relname, relrowsecurity from pg_class
      where relnamespace = 'public'::regnamespace and relname in
-       ('staff_accounts','staff_roles','staff_assignments','topics','topic_terms','learning_events','group_tasks')`;
-  assert.equal(rows.length, 7);
+       ('staff_roles','staff_assignments','topics','topic_terms','learning_events','group_tasks')`;
+  assert.equal(rows.length, 6);
   for (const r of rows) assert.equal(r.relrowsecurity, true, r.relname);
 });

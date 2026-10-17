@@ -1,55 +1,57 @@
--- 007_staff — вход сотрудников по логину и паролю, роли (#63) и основа этапа А
+-- 007_staff — вход сотрудников по личной ссылке, роли (#63) и основа этапа А
 -- Применять после 006. Затем: NOTIFY pgrst, 'reload schema';
 -- Как и в 001–006: RLS включён, политик нет — доступ только через api/ (service_role).
 --
--- Миграция только добавляет: ни одна колонка и ни одна строка из 001–006 не удаляется.
+-- Миграция только добавляет и расширяет: ни одна колонка и ни одна строка из 001–006 не удаляется.
 -- Нынешний кабинет (group_members.role = 'teacher', users.role = 'admin') работает как раньше,
 -- пока api/ не перейдёт на staff_assignments (следующий PR по #63). Строки
 -- group_members.role = 'teacher' уберём отдельной миграцией после этого перехода.
 --
 -- ── Часть 1. Сотрудники ──────────────────────────────────────
--- Сотрудник = строка users (role 'teacher' или 'admin') + учётная запись staff_accounts.
---   Вход в боте один раз: «Я сотрудник колледжа» → логин + временный пароль → сразу свой пароль;
---   api/ записывает Telegram в users.telegram_user_id, дальше кабинет без пароля.
+-- Решение 17.10.2026 (Света, Эльвира): сотрудники входят так же, как студенты, — по личной
+-- одноразовой ссылке (004), без логина и пароля. Кабинет открывается только в Telegram,
+-- на нескольких устройствах это один аккаунт — повторный вход не нужен; пароли не храним.
+--   Сотрудник = строка users (role 'teacher' или 'admin'). Мы (позже — методист) выдаём ему
+--   ссылку invites.role = 'staff': одноразовая, не дольше 48 ч, лично. Группы у ссылки нет —
+--   что он видит, решают staff_assignments и staff_roles.
 --   Telegram студента к сотруднику не привязать: users.telegram_user_id уникален (001),
---   понятную ошибку возвращает api/.
---   Сброс пароля (наш скрипт): новый временный хеш, must_change_password, users.telegram_user_id = null.
---   Увольнение: disabled_at. Запись не удаляем — на неё ссылаются согласия родителей (005, restrict).
+--   а вход по ссылке отказывает Telegram, уже привязанному к другому человеку (already_registered).
+--   Сброс (сменил Telegram, ссылка утекла): отзываем ссылки, users.telegram_user_id = null, новая ссылка.
+--   Увольнение: users.disabled_at. Запись не удаляем — на неё ссылаются согласия родителей (005, restrict).
 -- Роли: педагог и куратор — в группе (staff_assignments), методист — на весь колледж (staff_roles).
 -- У одного человека ролей может быть несколько.
 
-create table staff_accounts (
-  user_id              uuid primary key references users(id) on delete restrict,
-  login                text not null,
-  password_hash        text not null,       -- scrypt$N$r$p$соль$хеш (base64), сам пароль не храним
-  must_change_password boolean not null default true,  -- временный пароль — сменить при первом входе
-  failed_attempts      int  not null default 0,
-  locked_until         timestamptz,         -- 5 неверных подряд → пауза 15 мин (считает api/)
-  password_changed_at  timestamptz,
-  disabled_at          timestamptz,         -- уволен: вход закрыт, история остаётся
-  created_by           uuid references users(id) on delete set null,
-  created_at           timestamptz not null default now(),
-  -- логин только строчными: сравниваем без учёта регистра без lower() в каждом запросе
-  constraint staff_accounts_login_format check (login ~ '^[a-z0-9][a-z0-9._-]{2,31}$'),
-  constraint staff_accounts_hash_format  check (password_hash ~ '^scrypt\$'),
-  constraint staff_accounts_failed_attempts check (failed_attempts >= 0)
-);
-create unique index staff_accounts_login on staff_accounts (login);
+-- Уволенный сотрудник: кабинет закрыт, Telegram отвязан, история остаётся
+alter table users
+  add column disabled_at timestamptz;
 
--- Учётную запись сотрудника нельзя завести на студента
-create function staff_accounts_not_student() returns trigger
+-- Ссылка сотрудника: роль 'staff', без группы, со сроком не дольше 48 ч.
+-- Ссылки 'teacher' (004) оставляем для совместимости; новых не выдаём.
+-- Нынешний вход (api/_lib/invites.ts) соединяет ссылку с группой inner join — ссылку без группы
+-- он отклонит как invalid, пока api/ не научится входу сотрудника.
+alter table invites drop constraint invites_role_check;
+alter table invites
+  add constraint invites_role_check check (role in ('student','teacher','staff')),
+  alter column group_id drop not null,
+  add constraint invites_group_required check (role = 'staff' or group_id is not null),
+  add constraint invites_staff_no_group check (role <> 'staff' or group_id is null),
+  -- invites_teacher_expires (004) уже требует срок у всех ссылок, кроме студенческих
+  add constraint invites_staff_48h check (role <> 'staff' or expires_at <= created_at + interval '48 hours');
+
+-- Ссылку сотрудника нельзя выдать студенту
+create function invites_staff_not_student() returns trigger
   language plpgsql set search_path = public as $$
 begin
-  if exists (select 1 from users where id = new.user_id and role = 'student') then
-    raise exception 'staff account for a student'
-      using errcode = '23514', constraint = 'staff_accounts_not_student';
+  if new.role = 'staff' and exists (select 1 from users where id = new.user_id and role = 'student') then
+    raise exception 'staff invite for a student'
+      using errcode = '23514', constraint = 'invites_staff_not_student';
   end if;
   return new;
 end $$;
 
-create trigger staff_accounts_not_student
-  before insert or update of user_id on staff_accounts
-  for each row execute function staff_accounts_not_student();
+create trigger invites_staff_not_student
+  before insert or update of role, user_id on invites
+  for each row execute function invites_staff_not_student();
 
 -- Роли на весь колледж. Пока одна: методист / завуч — все группы на чтение, сводки методсовету.
 create table staff_roles (
@@ -169,7 +171,6 @@ create table group_tasks (
 create index group_tasks_group on group_tasks (group_id, due_at) where cancelled_at is null;
 
 -- ── RLS ───────────────────────────────────────────────────────
-alter table staff_accounts    enable row level security;
 alter table staff_roles       enable row level security;
 alter table staff_assignments enable row level security;
 alter table topics            enable row level security;
