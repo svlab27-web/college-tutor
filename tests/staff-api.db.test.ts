@@ -12,7 +12,7 @@ import { route } from '../api/_lib/router';
 const url = process.env.TEST_DATABASE_URL;
 const BOT_TOKEN = '123456789:TEST_ONLY_not_a_real_token';
 const opts = { skip: url ? false : 'нет TEST_DATABASE_URL' };
-let nextTg = Math.floor(Date.now() / 1000) * 1000 + 700_000;
+let nextTg = Math.floor(Date.now() / 1000) * 1000 + 300_000;
 let groupA = '';
 let groupB = '';
 let adminTg = 0;

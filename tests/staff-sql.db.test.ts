@@ -13,7 +13,7 @@ import { adminSql, recoverSql } from '../scripts/staff-sql';
 const url = process.env.TEST_DATABASE_URL;
 const BOT_TOKEN = '123456789:TEST_ONLY_not_a_real_token';
 const opts = { skip: url ? false : 'нет TEST_DATABASE_URL' };
-let nextTg = Math.floor(Date.now() / 1000) * 1000 + 800_000;
+let nextTg = Math.floor(Date.now() / 1000) * 1000 + 900_000;
 
 before(() => {
   if (!url) return;
