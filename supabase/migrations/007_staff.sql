@@ -3,23 +3,28 @@
 -- Как и в 001–006: RLS включён, политик нет — доступ только через api/ (service_role).
 --
 -- Миграция только добавляет и расширяет: ни одна колонка и ни одна строка из 001–006 не удаляется.
--- Нынешний кабинет (group_members.role = 'teacher', users.role = 'admin') работает как раньше,
--- пока api/ не перейдёт на staff_assignments (следующий PR по #63). Строки
--- group_members.role = 'teacher' уберём отдельной миграцией после этого перехода.
+-- Права в api/ (тот же PR) берутся только из staff_assignments и staff_roles; нынешние
+-- group_members.role = 'teacher' и users.role = 'admin' переносим туда ниже. Применять 007 —
+-- до выкладки этого api/: прежний api/ с 007 работает как раньше (только добавления).
+-- Строки group_members.role = 'teacher' уберём отдельной миграцией.
 --
 -- ── Часть 1. Сотрудники ──────────────────────────────────────
 -- Решение 17.10.2026 (Света, Эльвира): сотрудники входят так же, как студенты, — по личной
 -- одноразовой ссылке (004), без логина и пароля. Кабинет открывается только в Telegram,
 -- на нескольких устройствах это один аккаунт — повторный вход не нужен; пароли не храним.
---   Сотрудник = строка users (role 'teacher' или 'admin'). Мы (позже — методист) выдаём ему
+--   Сотрудник = строка users (role 'teacher' или 'admin'). Администратор колледжа выдаёт ему
 --   ссылку invites.role = 'staff': одноразовая, не дольше 48 ч, лично. Группы у ссылки нет —
 --   что он видит, решают staff_assignments и staff_roles.
 --   Telegram студента к сотруднику не привязать: users.telegram_user_id уникален (001),
 --   а вход по ссылке отказывает Telegram, уже привязанному к другому человеку (already_registered).
 --   Сброс (сменил Telegram, ссылка утекла): отзываем ссылки, users.telegram_user_id = null, новая ссылка.
 --   Увольнение: users.disabled_at. Запись не удаляем — на неё ссылаются согласия родителей (005, restrict).
--- Роли: педагог и куратор — в группе (staff_assignments), методист — на весь колледж (staff_roles).
--- У одного человека ролей может быть несколько.
+-- Роли: педагог и куратор — в группе (staff_assignments), методист и администратор колледжа —
+-- на весь колледж (staff_roles). У одного человека ролей может быть несколько.
+-- Передача колледжу (решение Эльвиры 18.10.2026): сотрудников и группы заводит администратор
+-- колледжа в кабинете, мы заводим только первых администраторов (scripts/staff-sql.ts).
+-- Последнего действующего администратора нельзя ни отключить, ни лишить роли — иначе колледж
+-- останется без доступа к кабинету (ниже, staff_keep_admin).
 
 -- Уволенный сотрудник: кабинет закрыт, Telegram отвязан, история остаётся
 alter table users
@@ -53,10 +58,13 @@ create trigger invites_staff_not_student
   before insert or update of role, user_id on invites
   for each row execute function invites_staff_not_student();
 
--- Роли на весь колледж. Пока одна: методист / завуч — все группы на чтение, сводки методсовету.
+-- Роли на весь колледж:
+--   methodist — методист / завуч: все группы на чтение, сводки методсовету;
+--   admin     — администратор колледжа: заводит сотрудников и группы, выдаёт им ссылки,
+--               отключает уволенных; группы — как куратор каждой.
 create table staff_roles (
   user_id    uuid not null references users(id) on delete cascade,
-  role       text not null constraint staff_roles_role check (role in ('methodist')),
+  role       text not null constraint staff_roles_role check (role in ('methodist','admin')),
   created_by uuid references users(id) on delete set null,
   created_at timestamptz not null default now(),
   primary key (user_id, role)
@@ -85,6 +93,38 @@ select m.user_id, m.group_id, 'curator'
   from group_members m
  where m.role = 'teacher'
 on conflict do nothing;
+
+-- Нынешние администраторы (users.role = 'admin') → администраторы колледжа
+insert into staff_roles (user_id, role)
+select id, 'admin' from users where role = 'admin'
+on conflict do nothing;
+
+-- Последний действующий администратор колледжа остаётся: не снять роль, не отключить, не удалить.
+-- Пока администраторов нет вовсе (новый колледж) — проверять нечего.
+create function staff_keep_admin() returns trigger
+  language plpgsql set search_path = public as $$
+begin
+  if tg_table_name = 'staff_roles' then
+    if old.role <> 'admin' then return null; end if;
+  elsif not (old.disabled_at is null and new.disabled_at is not null
+             and exists (select 1 from staff_roles where user_id = new.id and role = 'admin')) then
+    return null;
+  end if;
+  if not exists (select 1 from staff_roles r join users u on u.id = r.user_id
+                  where r.role = 'admin' and u.disabled_at is null) then
+    raise exception 'last college admin'
+      using errcode = '23514', constraint = 'staff_keep_admin';
+  end if;
+  return null;
+end $$;
+
+create trigger staff_keep_admin
+  after delete on staff_roles
+  for each row execute function staff_keep_admin();
+
+create trigger staff_keep_admin
+  after update of disabled_at on users
+  for each row execute function staff_keep_admin();
 
 -- ── Часть 2. Основа этапа А ──────────────────────────────────
 -- Тема от педагога: материал + термины + микрошаги + типичные ошибки → ИИ-черновик → правка →

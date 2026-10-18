@@ -2,18 +2,14 @@
 // Решение 14.10.2026 (docs/decisions.md): студентов заводит куратор, у каждого — своя
 // одноразовая ссылка, согласие родителя отмечает куратор по документам колледжа.
 //
-// Доступ: преподаватель (users.role = 'teacher') — только к группам, где он
-// group_members.role = 'teacher'; администратор колледжа (users.role = 'admin') — ко всем.
+// Кто к какой группе и студенту имеет доступ — api/_lib/staff.ts (роли из 007, #63).
 // Личность — только из проверенного initData (session.ts), telegram_user_id наружу не отдаём.
 
 import { randomInt } from 'node:crypto';
 import type postgres from 'postgres';
 import { HttpError } from './http';
-import { findUser, type UserRow } from './users';
 
-type Sql = postgres.Sql | postgres.TransactionSql;
-
-export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export { UUID } from './staff';
 
 // Личная ссылка студента: startapp=i_<16 символов>. Без похожих символов (0/O, 1/l/I),
 // чтобы код можно было продиктовать; 16 знаков из 56 — около 93 бит, не подобрать.
@@ -25,47 +21,6 @@ export function newInviteToken(): string {
   let code = '';
   for (let i = 0; i < 16; i++) code += ALPHABET[randomInt(ALPHABET.length)];
   return `i_${code}`;
-}
-
-export async function requireStaff(sql: Sql, telegramUserId: number): Promise<UserRow> {
-  const user = await findUser(sql, telegramUserId);
-  if (!user || (user.role !== 'teacher' && user.role !== 'admin')) {
-    throw new HttpError(403, 'staff_only', 'Кабинет доступен преподавателям и кураторам колледжа.');
-  }
-  return user;
-}
-
-export async function requireGroup(sql: Sql, staff: UserRow, groupId: unknown): Promise<string> {
-  if (typeof groupId !== 'string' || !UUID.test(groupId)) {
-    throw new HttpError(400, 'bad_group', 'Не указана группа.');
-  }
-  const [row] = await sql<{ ok: boolean }[]>`
-    select exists (
-      select 1 from groups g
-       where g.id = ${groupId}
-         and (${staff.role === 'admin'} or exists (
-               select 1 from group_members m
-                where m.group_id = g.id and m.user_id = ${staff.id} and m.role = 'teacher'))
-    ) as ok`;
-  // Чужая и несуществующая группа — один ответ: не подсказываем, какие группы есть
-  if (!row.ok) throw new HttpError(404, 'group_not_found', 'Группа не найдена.');
-  return groupId;
-}
-
-// Студент моей группы → id его группы (для ссылки). Иначе 404.
-export async function requireStudent(sql: Sql, staff: UserRow, studentId: string): Promise<{ groupId: string }> {
-  const [row] = await sql<{ group_id: string }[]>`
-    select m.group_id
-      from group_members m
-      join users u on u.id = m.user_id and u.role = 'student'
-     where m.user_id = ${studentId} and m.role = 'student'
-       and (${staff.role === 'admin'} or exists (
-             select 1 from group_members t
-              where t.group_id = m.group_id and t.user_id = ${staff.id} and t.role = 'teacher'))
-     order by m.joined_at
-     limit 1`;
-  if (!row) throw new HttpError(404, 'student_not_found', 'Студент не найден в ваших группах.');
-  return { groupId: row.group_id };
 }
 
 // Новая личная ссылка: прежняя действующая отзывается (у студента одна — invites_one_active)

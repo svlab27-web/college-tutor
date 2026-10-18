@@ -1,7 +1,7 @@
 // Схема 007 (ссылки сотрудников, роли, основа этапа А, #63) на настоящем Postgres с миграциями 001–007.
 // Запускается, только если задан TEST_DATABASE_URL (в CI — чистая база в контейнере).
 // Никогда не указывайте здесь рабочую базу: тест создаёт свои группы и пользователей.
-// Проверяем ограничения самой базы; вход сотрудника и права в api/ — тесты к следующему PR.
+// Проверяем ограничения самой базы; вход сотрудника и права в api/ — tests/staff-api.db.test.ts.
 
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
@@ -131,6 +131,41 @@ test('роль на колледж — только известная', opts, a
   await rejectsWith(
     db()`insert into staff_roles (user_id, role) values (${await person('admin')}, 'director')`,
     '23514', 'staff_roles_role');
+});
+
+// Внутри транзакции с откатом: в общей базе тестов есть и другие администраторы
+test('последнего действующего администратора не снять, не отключить, не удалить', opts, async () => {
+  class Rollback extends Error {}
+  await db()
+    .begin(async (tx) => {
+      const admin = async () => {
+        const [{ id }] = await tx<{ id: string }[]>`
+          insert into users (full_name, full_name_source, role) values ('Админ Последний', 'roster', 'teacher') returning id`;
+        await tx`insert into staff_roles (user_id, role) values (${id}, 'admin')`;
+        return id;
+      };
+      const keep = await admin();
+      // все прочие администраторы — отключены: остаётся один
+      await tx`update users set disabled_at = now()
+                where id <> ${keep} and disabled_at is null
+                  and id in (select user_id from staff_roles where role = 'admin')`;
+      for (const attempt of [
+        () => tx`delete from staff_roles where user_id = ${keep} and role = 'admin'`,
+        () => tx`update users set disabled_at = now() where id = ${keep}`,
+        () => tx`delete from users where id = ${keep}`,
+      ]) {
+        await tx`savepoint s`;
+        await rejectsWith(attempt(), '23514', 'staff_keep_admin');
+        await tx`rollback to savepoint s`;
+      }
+      // появился второй — первого уже можно отключить
+      await admin();
+      await tx`update users set disabled_at = now() where id = ${keep}`;
+      throw new Rollback();
+    })
+    .catch((e) => {
+      if (!(e instanceof Rollback)) throw e;
+    });
 });
 
 // ── Темы и термины ───────────────────────────────────────────

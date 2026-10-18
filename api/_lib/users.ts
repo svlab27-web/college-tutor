@@ -25,9 +25,11 @@ export interface GroupRow {
 
 // Студентов заводит куратор (004): по Telegram находим только тех, кто вошёл по личной ссылке.
 // Незнакомый Telegram в базу не пишем — он работает в демо.
+// Отключённый сотрудник (007, disabled_at) — как незнакомый: при отключении Telegram и так отвязываем.
 export async function findUser(sql: Sql, telegramUserId: number): Promise<UserRow | undefined> {
   const [user] = await sql<UserRow[]>`
-    select id, role, full_name, full_name_source, birth_year, birth_date::text, ui_language from users where telegram_user_id = ${telegramUserId}`;
+    select id, role, full_name, full_name_source, birth_year, birth_date::text, ui_language
+      from users where telegram_user_id = ${telegramUserId} and disabled_at is null`;
   return user;
 }
 

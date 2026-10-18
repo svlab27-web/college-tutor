@@ -45,7 +45,7 @@
 
 **Ссылку перехватили — «отвязать Telegram»** (кабинет #9, кнопка — @svlab27-web). Если по ссылке студента вошёл чужой Telegram, «Новая ссылка» не поможет: студент уже привязан к чужому Telegram, а настоящий студент без входа не может даже написать куратору (403).
 
-`POST /api/curator/students/:id/unlink` — только куратор группы этого студента (`group_members.role = 'teacher'` в той же группе) или админ. В одной транзакции:
+`POST /api/curator/students/:id/unlink` — только куратор группы этого студента (`staff_assignments.role = 'curator'`, 007) или администратор колледжа. В одной транзакции:
 - `users.telegram_user_id = null` — чужой Telegram больше не видит данные студента;
 - все действующие ссылки студента отзываются (`invites.revoked_at = now()`);
 - согласие на обработку ПД, данное с отвязанного Telegram, отзывается (`revoked_at`) — его давал, возможно, не студент; согласие родителя (отметка куратора) остаётся;
@@ -190,11 +190,20 @@
 
 ## 2а. Кабинет куратора (#9, часть 1)
 
-Доступ: `users.role = 'teacher'` — только группы, где он `group_members.role = 'teacher'`; `admin` — все группы колледжа. Чужая или несуществующая группа / студент — одинаково 404. Личность — только из `initData`; `telegram_user_id` наружу не отдаём. Код: `api/_lib/curator.ts`, `api/_lib/routes/curator.ts`, тесты — `tests/curator.db.test.ts`.
+Доступ — по ролям 007 (#63, `api/_lib/staff.ts`), `users.role = 'admin'` и `group_members.role = 'teacher'` для прав больше не читаются:
+
+| Кто | Список, ссылки, согласия, ФИО, отвязка | Прогресс, обращения | «Решено» в обращении |
+|---|---|---|---|
+| Куратор группы (`staff_assignments.role = 'curator'`) | своя группа | своя группа | да |
+| Педагог группы (`'teacher'` + предмет) | — | своя группа; в прогрессе — только уроки своих предметов | да |
+| Методист (`staff_roles.role = 'methodist'`) | — | все группы | — |
+| Администратор колледжа (`staff_roles.role = 'admin'`) | все группы | все группы | да |
+
+Чужая или несуществующая группа / студент — одинаково 404. Личность — только из `initData`; `telegram_user_id` наружу не отдаём. Отключённый сотрудник (`disabled_at`) — как незнакомый Telegram. Код: `api/_lib/staff.ts`, `api/_lib/routes/curator.ts`, тесты — `tests/curator.db.test.ts`, `tests/staff-api.db.test.ts`.
 
 | Метод | Путь | Что делает |
 |---|---|---|
-| GET | `/api/curator/groups` | Мои группы (админ — все): `students`, `linked` |
+| GET | `/api/curator/groups` | Мои группы (администратор и методист — все): `curator`, `subjects` (где я педагог), `can_manage`, `students`, `linked`; в ответе ещё `admin`, `methodist` |
 | GET | `/api/curator/students?group_id=` | Список группы: ФИО, дата/год рождения, `minor`, `linked` (вошёл), `has_consent`, `parental` (`document_ref`), действующая `invite` (`token`, `expires_at`), `needs`, `name_errors`, `open_help` |
 | POST | `/api/curator/students` | Завести студента `{ group_id, full_name, birth_date \| birth_year }` → сразу личная ссылка |
 | POST | `/api/curator/students/bulk` | Список группы разом `{ group_id, students: [...] }`, до 100; всё или ничего — ошибки и повторы (в списке и с группой) по номерам строк. Разбор файла (Excel, CSV, Word) и правка — в браузере (`app/roster-import.js`) |
@@ -207,6 +216,30 @@
 | PATCH | `/api/curator/help/:id` | `{ status: "resolved" \| "new" }` — «решено» / вернуть; только обращения своих групп (админ — любые), иначе 404. «Ошибка в ФИО» закрывается и сама, когда куратор исправил ФИО |
 
 Дату рождения куратор видит (он её вносил); студенту она не отдаётся. Дальше (часть 2): прогресс и «кто застрял», задания со сроком, ответы на обращения, КТП → черновики AI, выгрузка в Excel.
+
+## 2б. Сотрудники и группы — кабинет администратора колледжа (#63)
+
+Решение 18.10.2026: после передачи колледж заводит сотрудников и группы сам, без нас. Мы заводим только первых администраторов — `npm run --silent staff:sql -- --admin="Фамилия Имя" > admin.sql` (SQL для SQL Editor / psql, ссылка — в терминал). Советуем двух администраторов: если уйдут оба, айтишник колледжа восстанавливает доступ тем же скриптом — `--recover="Фамилия Имя"` (отвязывает прежний Telegram, снимает «отключён», возвращает роль, новая ссылка).
+
+**Вход сотрудника** — как у студента: `GET /api/me` со `start_param` = код ссылки `invites.role = 'staff'` (без группы, одноразовая, 48 ч). Ответ `join`: `{ status: "joined", staff: true }`; дальше `/api/me` отдаёт `staff: { admin, methodist, groups: [{ id, title, language, curator, subjects }] }` — по нему интерфейс показывает вкладки. Telegram, привязанный к студенту, ссылкой сотрудника не привязать (`already_registered`).
+
+Только `staff_roles.role = 'admin'`, иначе 403 `admin_only`. Код: `api/_lib/routes/admin.ts`, тесты — `tests/staff-api.db.test.ts`, `tests/staff-sql.db.test.ts`.
+
+| Метод | Путь | Что делает |
+|---|---|---|
+| GET | `/api/admin/staff` | Сотрудники: `full_name`, `admin`, `methodist`, `assignments` (`id`, `group_id`, `group_title`, `role`, `subject_id`), `linked`, `disabled`, действующая `invite`; `admins_active` — сколько действующих администраторов (меньше 2 — интерфейс предупреждает) |
+| POST | `/api/admin/staff` | Завести `{ full_name, admin?, methodist?, assignments?: [{ group_id, role: curator \| teacher, subject_id? }] }` → `staff` + `invite` (`token`, `expires_at`, 48 ч) |
+| PATCH | `/api/admin/staff/:id` | `{ full_name?, admin?, methodist? }` |
+| POST | `/api/admin/staff/:id/assignments` | Назначить `{ group_id, role, subject_id? }` — педагогу предмет обязателен; повтор — 409 `already_assigned` |
+| DELETE | `/api/admin/staff/:id/assignments/:assignment_id` | Снять назначение |
+| POST | `/api/admin/staff/:id/invite` | Новая ссылка, прежние отзываются. Уже вошёл — 409 `already_linked`; `{ relink: true }` — сменил Telegram: прежний отвязывается. Себя отвязать нельзя (400 `self`) |
+| POST | `/api/admin/staff/:id/disable` | Уволен: `disabled_at`, Telegram отвязан, ссылки отозваны; запись остаётся (история согласий). Себя — 400 `self` |
+| POST | `/api/admin/staff/:id/enable` | Вернуть; войдёт по новой ссылке |
+| GET | `/api/admin/groups` | Все группы: `students`, `staff` (`user_id`, `full_name`, `role`, `subject_id`) + список `subjects` для назначений |
+| POST | `/api/admin/groups` | `{ title, language?: ru \| kk }`; такое название уже есть — 409 |
+| PATCH | `/api/admin/groups/:id` | `{ title?, language? }` |
+
+Последнего действующего администратора нельзя ни отключить, ни лишить роли — база не даст (007, `staff_keep_admin`), ответ 409 `last_admin`. В журнал — кто кому выдал ссылку / кого отключил, без самой ссылки и Telegram ID.
 
 ## 3. Уроки из `content/` в базу
 

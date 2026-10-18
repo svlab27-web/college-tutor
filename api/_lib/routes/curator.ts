@@ -1,6 +1,9 @@
 // Кабинет куратора (#9), часть 1 — список группы, личные ссылки, согласие родителя.
 //
-// GET   /api/curator/groups                         — мои группы (у админа — все) со счётчиками
+// Права — по ролям из 007 (api/_lib/staff.ts): список, ссылки, согласия — куратор группы и
+// администратор колледжа; прогресс и обращения — ещё педагог группы и методист (только чтение).
+//
+// GET   /api/curator/groups                         — мои группы (у администратора и методиста — все) со счётчиками и ролями
 // GET   /api/curator/students?group_id=…            — список группы: ФИО, возраст, согласия, ссылка, вход
 // POST  /api/curator/students                       — завести студента { group_id, full_name, birth_date | birth_year } + ссылка
 // POST  /api/curator/students/bulk                  — список группы разом { group_id, students: [...] } (до 100), всё или ничего
@@ -16,16 +19,10 @@
 
 import { db } from '../db';
 import { HttpError, json } from '../http';
-import {
-  issueInvite,
-  requireGroup,
-  requireStaff,
-  requireStudent,
-  rosterFields,
-  UUID,
-} from '../curator';
+import { issueInvite, rosterFields, UUID } from '../curator';
 import { CONSENT_DOC_VERSION, profileStatus, todayInKazakhstan } from '../profile';
 import { readJson, requireIdentity } from '../session';
+import { groupAccessSql, requireGroup, requireStaff, requireStudent, staffGroups } from '../staff';
 
 const NAME_ERROR_PREFIX = 'Ошибка в ФИО:'; // так help.ts записывает «сообщить об ошибке»
 
@@ -113,25 +110,33 @@ export async function getCuratorGroups(req: Request): Promise<Response> {
   const identity = requireIdentity(req);
   const sql = db();
   const staff = await requireStaff(sql, identity.telegramUserId);
-  const groups = await sql<{ id: string; title: string; language: string; students: number; linked: number }[]>`
-    select g.id, g.title, g.language,
-           count(s.user_id)::int as students,
-           count(s.user_id) filter (where u.telegram_user_id is not null)::int as linked
-      from groups g
-      left join group_members s on s.group_id = g.id and s.role = 'student'
-      left join users u on u.id = s.user_id
-     where ${staff.role === 'admin'} or exists (
-             select 1 from group_members t where t.group_id = g.id and t.user_id = ${staff.id} and t.role = 'teacher')
-     group by g.id
-     order by g.title`;
-  return json(200, { role: staff.role, groups });
+  const mine = await staffGroups(sql, staff);
+  const counts = mine.length
+    ? await sql<{ id: string; students: number; linked: number }[]>`
+        select s.group_id as id,
+               count(*)::int as students,
+               count(*) filter (where u.telegram_user_id is not null)::int as linked
+          from group_members s join users u on u.id = s.user_id
+         where s.role = 'student' and s.group_id in ${sql(mine.map((g) => g.id))}
+         group by s.group_id`
+    : [];
+  const byId = new Map(counts.map((c) => [c.id, c]));
+  // can_manage — список, ссылки, согласия (куратор группы, администратор колледжа);
+  // без него группа только для «Прогресса» и «Обращений» (педагог, методист)
+  const groups = mine.map((g) => ({
+    ...g,
+    can_manage: staff.admin || g.curator,
+    students: byId.get(g.id)?.students ?? 0,
+    linked: byId.get(g.id)?.linked ?? 0,
+  }));
+  return json(200, { role: staff.role, admin: staff.admin, methodist: staff.methodist, groups });
 }
 
 export async function getCuratorStudents(req: Request): Promise<Response> {
   const identity = requireIdentity(req);
   const sql = db();
   const staff = await requireStaff(sql, identity.telegramUserId);
-  const groupId = await requireGroup(sql, staff, new URL(req.url).searchParams.get('group_id'));
+  const groupId = await requireGroup(sql, staff, new URL(req.url).searchParams.get('group_id'), 'manage');
   return json(200, { group_id: groupId, students: await loadStudents(groupId) });
 }
 
@@ -140,7 +145,7 @@ export async function postCuratorStudent(req: Request): Promise<Response> {
   const body = await readJson(req);
   const sql = db();
   const staff = await requireStaff(sql, identity.telegramUserId);
-  const groupId = await requireGroup(sql, staff, body.group_id);
+  const groupId = await requireGroup(sql, staff, body.group_id, 'manage');
   const f = rosterFields(body, true);
   // Как в bulk: такой студент уже есть в группе — 409, куратор может подтвердить (force: true) — бывают тёзки
   if (body.force !== true) {
@@ -174,7 +179,7 @@ export async function postCuratorStudentsBulk(req: Request): Promise<Response> {
   const body = await readJson(req);
   const sql = db();
   const staff = await requireStaff(sql, identity.telegramUserId);
-  const groupId = await requireGroup(sql, staff, body.group_id);
+  const groupId = await requireGroup(sql, staff, body.group_id, 'manage');
   const list = Array.isArray(body.students) ? body.students : [];
   if (!list.length) throw new HttpError(400, 'empty_list', 'Список пуст.');
   if (list.length > MAX_BULK) throw new HttpError(400, 'too_many', `За раз — не больше ${MAX_BULK} студентов.`);
@@ -349,7 +354,7 @@ export async function getCuratorHelp(req: Request): Promise<Response> {
   const sql = db();
   const staff = await requireStaff(sql, identity.telegramUserId);
   const params = new URL(req.url).searchParams;
-  const groupId = await requireGroup(sql, staff, params.get('group_id'));
+  const groupId = await requireGroup(sql, staff, params.get('group_id'), 'read');
   const all = params.get('status') === 'all';
   const rows = await sql<{
     id: string; student_id: string; full_name: string | null; lesson_id: string | null; lesson_title: string | null;
@@ -383,15 +388,13 @@ export async function patchCuratorHelp(req: Request): Promise<Response> {
   }
   const sql = db();
   const staff = await requireStaff(sql, identity.telegramUserId);
-  // Только обращения своих групп (у админа — любые)
+  // Только обращения своих групп: куратор и педагог группы, администратор колледжа (методист — нет)
   const [row] = await sql<{ id: string; status: string; resolved_at: Date | null }[]>`
     update help_requests h
        set status = ${body.status as string},
            resolved_at = case when ${body.status as string} = 'resolved' then coalesce(h.resolved_at, now()) end
      where h.id = ${id}
-       and (${staff.role === 'admin'} or exists (
-             select 1 from group_members t
-              where t.group_id = h.group_id and t.user_id = ${staff.id} and t.role = 'teacher'))
+       and ${groupAccessSql(sql, staff, sql`h.group_id`, 'answer')}
     returning h.id, h.status, h.resolved_at`;
   if (!row) throw new HttpError(404, 'help_not_found', 'Обращение не найдено.');
   return json(200, { request: row });
