@@ -1,25 +1,33 @@
 // GET /api/curator/progress?group_id= — вкладка «Прогресс» у куратора (только чтение, #6 к показу).
-// Доступ — как у списка группы (api/_lib/curator.ts): преподаватель своей группы или админ, чужое — 404.
+// Доступ (api/_lib/staff.ts): куратор и педагог группы, методист, администратор колледжа; чужое — 404.
+// Педагог (не куратор этой группы) видит только уроки своих предметов.
 // Студенты × уроки: пройдено шагов, текущий шаг, последняя активность, попытки, подсказки,
 // самостоятельная — решена / с первой попытки. Ответы студентов наружу не отдаём.
 
-import { requireGroup, requireStaff } from '../curator';
 import { db } from '../db';
 import { json } from '../http';
 import { stepsOf } from '../lessons';
 import { CONSENT_DOC_VERSION, profileStatus, todayInKazakhstan } from '../profile';
 import { requireIdentity } from '../session';
+import { requireGroup, requireStaff, staffGroups } from '../staff';
 
 export async function getCuratorProgress(req: Request): Promise<Response> {
   const identity = requireIdentity(req);
   const sql = db();
   const staff = await requireStaff(sql, identity.telegramUserId);
-  const groupId = await requireGroup(sql, staff, new URL(req.url).searchParams.get('group_id'));
+  const groupId = await requireGroup(sql, staff, new URL(req.url).searchParams.get('group_id'), 'read');
+  const mine = (await staffGroups(sql, staff)).find((g) => g.id === groupId);
+  const onlySubjects = staff.admin || staff.methodist || mine?.curator ? null : (mine?.subjects ?? []);
 
   // Куратор видит и неопубликованные уроки — как в /api/lessons
-  const rows = await sql<{ id: string; subject: string; slug: string; title: string; content: Record<string, unknown> }[]>`
+  const all = await sql<{ id: string; subject: string; slug: string; title: string; content: Record<string, unknown> }[]>`
     select id, subject_id as subject, slug, title, content
       from (select distinct on (subject_id, slug) * from lessons order by subject_id, slug, version desc) l`;
+  const rows = onlySubjects ? all.filter((l) => onlySubjects.includes(l.subject)) : all;
+  // Попытки бывают и по прежним версиям урока — фильтр по предмету, а не по id последней версии
+  const visible = onlySubjects
+    ? new Set((await sql<{ id: string }[]>`select id from lessons where subject_id in ${sql(onlySubjects.length ? onlySubjects : [''])}`).map((l) => l.id))
+    : null;
   // Порядок плана семестра — как в /api/lessons: предмет, неделя, номер в неделе, slug
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 999);
   const lessons = [...rows].sort(
@@ -82,7 +90,7 @@ export async function getCuratorProgress(req: Request): Promise<Response> {
       }).canSaveProgress,
       lessons: Object.fromEntries(
         stats
-          .filter((r) => r.user_id === s.id)
+          .filter((r) => r.user_id === s.id && (!visible || visible.has(r.lesson_id)))
           .map((r) => [
             r.lesson_id,
             {

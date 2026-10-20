@@ -51,6 +51,15 @@ erDiagram
     users ||--o{ ai_messages : "диалог с AI"
     lessons ||--o{ ai_messages : ""
     lessons ||--o{ lesson_translations : "переводы"
+    users ||--o{ staff_roles : "роль на колледж"
+    users ||--o{ staff_assignments : "роль в группе"
+    groups ||--o{ staff_assignments : ""
+    subjects ||--o{ topics : "темы педагогов"
+    topics ||--o{ topic_terms : "термины"
+    users ||--o{ learning_events : "журнал"
+    topic_terms ||--o{ learning_events : "споткнулся"
+    groups ||--o{ group_tasks : "задания"
+    topics ||--o{ group_tasks : ""
 ```
 
 | Таблица | Что хранит | Ключевые поля |
@@ -59,15 +68,21 @@ erDiagram
 | `lessons` | Урок целиком из `content/*.json` на основном языке | `subject_id`, `slug`, `version`, `language` (003, по умолчанию `ru`), `content` (jsonb), `is_published`, `approved_by` |
 | `lesson_translations` | Урок на другом языке — из `*.kk.json` (003) | `(lesson_id, language)`, `content` (jsonb), `status` = `draft` / `review` / `approved`, `approved_by` |
 | `groups` | Учебные группы | `title`, `language` (`ru` / `kk`) |
-| `users` | Студенты и преподаватели; куратор создаёт заранее, Telegram привязывается при первом входе (004) | `telegram_user_id` (уникальный, пусто до первого входа), `role`, `full_name` + `full_name_source`, `birth_date` (004, если колледж даёт) / `birth_year`, `delete_after`, `ui_language` (003), настройки напоминаний |
+| `users` | Студенты и преподаватели; куратор создаёт заранее, Telegram привязывается при первом входе (004) | `telegram_user_id` (уникальный, пусто до первого входа), `role`, `full_name` + `full_name_source`, `birth_date` (004, если колледж даёт) / `birth_year`, `delete_after`, `ui_language` (003), `disabled_at` — уволенный сотрудник (007), настройки напоминаний |
 | `group_members` | Кто в какой группе и в какой роли | `(group_id, user_id)`, `role` = `student` / `teacher`, `invite_token` — по какой ссылке вступил (004) |
-| `invites` | Личная одноразовая ссылка студента или преподавателя (004) | `token` = `start_param`, `user_id` — чья ссылка, `group_id`, `role`, `expires_at`, `revoked_at`, `created_by`, `used_by` / `used_at` |
+| `invites` | Личная одноразовая ссылка студента или сотрудника (004; `staff` — 007) | `token` = `start_param`, `user_id` — чья ссылка, `group_id`, `role`, `expires_at`, `revoked_at`, `created_by`, `used_by` / `used_at` |
 | `attempts` | Каждый ответ студента | `answer` (jsonb), `is_correct`, `hints_used`, `is_independent`, `request_id`, `language` (003) |
 | `progress` | Где студент в уроке | `(user_id, lesson_id)`, `current_step`, `completed_steps`, `completed_at` |
 | `hint_events` | Каждая взятая подсказка | `level` 1–3, `source` = `script` / `ai` |
 | `help_requests` | Обращения «нужна помощь» | `text`, `status` = `new` / `resolved` |
 | `consents` | Согласия на обработку ПД и родительские (002, 005) | `kind`, `doc_version`, `granted_via` (`telegram` — сам студент; `paper` / `college_list` — согласие родителя, отмечает куратор), `parent_name`, `document_ref` — где бумага, `telegram_user_id` (след после удаления студента; у согласия родителя может быть пусто), `revoked_at` |
-| `ai_messages` | Журнал AI-тьютора (002) | `question`, `answer`, `material_ref`, `status`, токены и `cost_usd`, `review_verdict` преподавателя, `language` (003) |
+| `ai_messages` | Журнал AI-тьютора (002) | `question`, `answer`, `material_ref`, `status`, токены и `cost_usd`, `review_verdict` преподавателя, `language` (003), `topic_id` (007) |
+| `staff_roles` | Роль на весь колледж (007) | `(user_id, role)`: `methodist` — всё на чтение, `admin` — администратор колледжа (сотрудники и группы) |
+| `staff_assignments` | Роль сотрудника в группе (007) | `user_id`, `group_id`, `role` = `teacher` (с `subject_id`) / `curator` (без) |
+| `topics` | Тема педагога — основа этапа А (007) | `subject_id`, `source` = `file` / `editor`, `status` = `draft` / `approved` / `archived`, `content` (jsonb), `author_id`, `approved_by` |
+| `topic_terms` | Термины темы отдельными записями (007) | `topic_id`, `term` (один раз в теме без учёта регистра), `definition` |
+| `learning_events` | Журнал для отчёта педагогу (007) | `user_id`, тема или урок, `term_id`, `kind` = `term_stumble` / `term_resolved` / `step_stuck`, `confidence` 0–1, `source` |
+| `group_tasks` | Задание группе со сроком (007) | `group_id`, тема или урок (ровно одно), `assigned_by`, `due_at`, `cancelled_at` |
 
 ## 3. Основные сценарии
 
@@ -100,8 +115,17 @@ Telegram без личной ссылки → демо, в базу ничего
 - Каждая подсказка → строка в `hint_events`.
 - В самостоятельной задаче (`independent: true`) `api/` подсказки не выдаёт.
 
+### Вход сотрудника (#63, схема — 007)
+Решение 17.10.2026: сотрудник входит, как студент, — по личной одноразовой ссылке, без логина и пароля. Кабинет открывается только в Telegram; на нескольких устройствах это один аккаунт.
+1. Администратор колледжа заводит сотрудника в кабинете (`/api/admin/*`): `users` (`role` = `teacher`) + назначения, и выдаёт ссылку `invites.role = 'staff'` — без группы, срок не дольше 48 ч, лично. Мы заводим только первых администраторов (`scripts/staff-sql.ts`, решение 18.10.2026).
+2. Сотрудник открывает ссылку → `api/` записывает Telegram в `users.telegram_user_id`, дальше кабинет открывается сразу.
+3. Telegram, уже привязанный к студенту, ссылкой сотрудника не привязать (`already_registered`, `telegram_user_id` уникален); выдать ссылку сотрудника студенту база не даст.
+4. Сброс (сменил Telegram, ссылка утекла): отзываем ссылки, `telegram_user_id` = null, новая ссылка. Увольнение: `users.disabled_at`; запись не удаляется (на неё ссылаются согласия родителей).
+
+Роли: педагог — свои предметы в своих группах (`staff_assignments.role = 'teacher'` + `subject_id`), куратор — своя группа (`'curator'`), методист — всё на чтение, администратор колледжа — сотрудники, группы и всё, что у куратора, во всех группах (`staff_roles`). Ролей у человека может быть несколько. Последнего действующего администратора база не даёт ни отключить, ни лишить роли (`staff_keep_admin`). Права в `api/` — только по этим таблицам (`api/_lib/staff.ts`, таблица прав — docs/api.md, п. 2а).
+
 ### Кабинет преподавателя (#9)
-- Преподаватель видит только группы, где он `group_members.role = 'teacher'`.
+- Сотрудник видит группы по `staff_assignments` (администратор и методист — все); 007 перенесла прежние `group_members.role = 'teacher'` в кураторы, а `users.role = 'admin'` — в `staff_roles`.
 - «Кто застрял»: 2 неверные попытки подряд по одному шагу **или** ≥ 3 подсказки на шаг.
 
 ## 4. Права доступа
@@ -109,8 +133,9 @@ Telegram без личной ссылки → демо, в базу ничего
 | Кто | Что видит | Где проверяется |
 |---|---|---|
 | Студент | Только свои `attempts`, `progress`, `hint_events`, `help_requests` | `api/`: `user_id` из проверенного `initData` |
-| Преподаватель | Студентов своих групп | `api/`: join через `group_members` с ролью `teacher` |
-| Админ | Всё | `users.role = 'admin'` |
+| Куратор / педагог | Свою группу (педагог — только прогресс и обращения, уроки своих предметов) | `api/_lib/staff.ts`: `staff_assignments` |
+| Методист | Все группы на чтение | `staff_roles.role = 'methodist'` |
+| Администратор колледжа | Всё, плюс сотрудники и группы | `staff_roles.role = 'admin'` |
 | Браузер напрямую | Ничего | RLS без политик |
 
 `service_role` обходит RLS, поэтому **любой запрос в `api/` обязан фильтровать по пользователю**. Это пункт ревью для каждого PR в `api/`.
@@ -128,7 +153,7 @@ Telegram без личной ссылки → демо, в базу ничего
 
 ## 6. Миграции
 
-- Имя: `NNN_кратко.sql` — следующая свободная: `007_…sql`.
+- Имя: `NNN_кратко.sql` — следующая свободная: `008_…sql`.
 - **Применённую миграцию не меняем** — только новая сверху.
 - Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
   Позже можно перейти на Supabase CLI (`supabase db push`).
@@ -147,6 +172,7 @@ Telegram без личной ссылки → демо, в базу ничего
 | `004_personal_invites.sql` | Личная одноразовая ссылка: `invites.user_id` / `revoked_at` / `created_by`, формат токена, одна действующая ссылка на студента, `group_members.invite_token`, `users.birth_date`; ссылка преподавателя — только со сроком; `invites.full_name` удалён | #35 | 14.10.2026 · `college-tutor` |
 | `005_parental_consent.sql` | Согласие родителя отмечает куратор: `consents.document_ref`, `recorded_by` обязателен (куратора не удалить), способ `college_list`, без Telegram студента; при удалении студента отметки о согласии родителя удаляются; одно действующее согласие студента на версию текста | #36 | 14.10.2026 · `college-tutor` |
 | `006_curator.sql` | Под кабинет куратора (#9): одно действующее согласие родителя на студента (`consents_one_parental`), индексы `group_members (user_id)`, `help_requests` (открытые студента; группы по статусу и дате), `attempts (lesson_id, created_at)` | #44 | 15.10.2026 · `college-tutor` |
+| `007_staff.sql` | Вход сотрудников по личной ссылке и роли (#63): `invites.role = 'staff'` (без группы, ≤ 48 ч), `users.disabled_at`, `staff_roles` (методист, администратор колледжа; последнего администратора не убрать — `staff_keep_admin`), `staff_assignments` (педагог с предметом / куратор), перенос `group_members.role = 'teacher'` в кураторы и `users.role = 'admin'` в `staff_roles`; основа этапа А: `topics`, `topic_terms`, `learning_events`, `group_tasks`, `ai_messages.topic_id`. Только добавляет — прежний `api/` с ней работает как раньше; применять до выкладки `api/` из того же PR | #66 | 20.10.2026 · `college-tutor` (перенесён 1 куратор, администраторов 0) |
 
 `seed.sql` в `college-tutor` не применялся.
 
@@ -158,6 +184,13 @@ Telegram без личной ссылки → демо, в базу ничего
 select user_id, count(*) from consents
  where kind = 'parental' and revoked_at is null
  group by user_id having count(*) > 1;
+```
+
+Перед 007 — версия Postgres не ниже 15 (`unique nulls not distinct`) и сколько преподавателей перенесётся в кураторы:
+
+```sql
+select version();
+select count(*) from group_members where role = 'teacher';
 ```
 
 ## 7. Окружения и бэкапы
@@ -174,6 +207,7 @@ select user_id, count(*) from consents
 - **004** — личная ссылка студента (#5) — #35.
 - **005** — согласие родителя отмечает куратор — #36.
 - ~~**006** — под кабинет: одно согласие родителя + индексы~~ — применено 15.10.2026 (#44).
+- **007** — вход сотрудников и основа этапа А (#63). `api/` переходит на `staff_assignments` в том же PR. Следом: убрать строки `group_members.role = 'teacher'`.
 - Учёт расходов на AI и дневной лимит — отдельная миграция не нужна: токены и стоимость пишутся в `ai_messages` (002), индекс `ai_messages_user_day` уже есть. Лимит считает `api/`.
 - Согласия и год рождения — сделаны в 002.
 - Срок хранения учебных данных и удаление по запросу — решить до пилота (поле `users.delete_after` уже есть, нужна процедура).

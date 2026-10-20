@@ -7,6 +7,7 @@ import { HttpError, json } from '../http';
 import { bindInvite, isInviteToken, type JoinResult } from '../invites';
 import { CONSENT_DOC_VERSION, cleanLanguage, profileStatus, todayInKazakhstan } from '../profile';
 import { readJson, requireIdentity } from '../session';
+import { findStaff, staffGroups } from '../staff';
 import { consentFlags, findUser, requireUser, userGroups, type UserRow } from '../users';
 
 async function profile(user: UserRow, identity: TelegramIdentity, join: JoinResult | null) {
@@ -24,6 +25,11 @@ async function profile(user: UserRow, identity: TelegramIdentity, join: JoinResu
   // Язык: выбор студента → язык Telegram → язык первой группы → русский
   const language =
     user.ui_language ?? cleanLanguage(identity.languageCode) ?? cleanLanguage(groups[0]?.language) ?? 'ru';
+  // Сотрудник: роли на колледж и группы с ролями — интерфейс показывает вкладки по ним (#63)
+  const member = user.role === 'teacher' || user.role === 'admin' ? await findStaff(sql, identity.telegramUserId) : undefined;
+  const staff = member
+    ? { admin: member.admin, methodist: member.methodist, groups: await staffGroups(sql, member) }
+    : null;
 
   return {
     registered: true,
@@ -36,6 +42,7 @@ async function profile(user: UserRow, identity: TelegramIdentity, join: JoinResu
     },
     language,
     groups,
+    staff,
     join,
     needs: status.needs,
     minor: status.minor,

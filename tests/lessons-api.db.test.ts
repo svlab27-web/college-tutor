@@ -48,7 +48,7 @@ before(async () => {
   const [{ id: curatorId }] = await sql<{ id: string }[]>`
     insert into users (full_name, full_name_source, birth_year, role, telegram_user_id)
     values ('Куратор Уроков', 'roster', 1985, 'teacher', ${curatorTg}) returning id`;
-  await sql`insert into group_members (group_id, user_id, role) values (${groupId}, ${curatorId}, 'teacher')`;
+  await sql`insert into staff_assignments (user_id, group_id, role) values (${curatorId}, ${groupId}, 'curator')`;
   pyId = await lesson('python', python, true);
   mathId = await lesson('math', math, true);
   hiddenId = await lesson('python', python, false);

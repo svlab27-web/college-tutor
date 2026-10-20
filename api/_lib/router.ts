@@ -4,6 +4,19 @@
 
 import { ConfigError } from './env';
 import { HttpError, json } from './http';
+import {
+  deleteAdminAssignment,
+  getAdminGroups,
+  getAdminStaff,
+  patchAdminGroup,
+  patchAdminStaff,
+  postAdminAssignment,
+  postAdminGroup,
+  postAdminStaff,
+  postAdminStaffDisable,
+  postAdminStaffEnable,
+  postAdminStaffInvite,
+} from './routes/admin';
 import { postBot } from './routes/bot';
 import { postConsent } from './routes/consent';
 import {
@@ -40,6 +53,8 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   '/api/curator/help': { GET: getCuratorHelp },
   '/api/lessons': { GET: getLessons },
   '/api/answer': { POST: postAnswer },
+  '/api/admin/staff': { GET: getAdminStaff, POST: postAdminStaff },
+  '/api/admin/groups': { GET: getAdminGroups, POST: postAdminGroup },
 };
 
 // Пути с id (студента, урока): обработчик сам достаёт id из URL и проверяет доступ
@@ -50,6 +65,13 @@ const patterns: { re: RegExp; methods: Partial<Record<string, Handler>> }[] = [
   { re: /^\/api\/curator\/students\/[^/]+\/parental$/, methods: { POST: postCuratorParental, DELETE: deleteCuratorParental } },
   { re: /^\/api\/curator\/students\/[^/]+\/unlink$/, methods: { POST: postCuratorUnlink } },
   { re: /^\/api\/curator\/help\/[^/]+$/, methods: { PATCH: patchCuratorHelp } },
+  { re: /^\/api\/admin\/staff\/[^/]+$/, methods: { PATCH: patchAdminStaff } },
+  { re: /^\/api\/admin\/staff\/[^/]+\/assignments$/, methods: { POST: postAdminAssignment } },
+  { re: /^\/api\/admin\/staff\/[^/]+\/assignments\/[^/]+$/, methods: { DELETE: deleteAdminAssignment } },
+  { re: /^\/api\/admin\/staff\/[^/]+\/invite$/, methods: { POST: postAdminStaffInvite } },
+  { re: /^\/api\/admin\/staff\/[^/]+\/disable$/, methods: { POST: postAdminStaffDisable } },
+  { re: /^\/api\/admin\/staff\/[^/]+\/enable$/, methods: { POST: postAdminStaffEnable } },
+  { re: /^\/api\/admin\/groups\/[^/]+$/, methods: { PATCH: patchAdminGroup } },
 ];
 
 export async function route(req: Request): Promise<Response> {

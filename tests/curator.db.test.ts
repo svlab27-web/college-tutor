@@ -1,4 +1,4 @@
-// Кабинет куратора (#9) на настоящем Postgres с миграциями 001–005.
+// Кабинет куратора (#9) на настоящем Postgres с миграциями 001–007.
 // Запускается, только если задан TEST_DATABASE_URL (в CI — чистая база в контейнере).
 // Никогда не указывайте здесь рабочую базу: тест создаёт свои группы и пользователей.
 
@@ -31,7 +31,9 @@ before(async () => {
     const [{ id }] = await sql<{ id: string }[]>`
       insert into users (telegram_user_id, full_name, full_name_source, birth_year, role)
       values (${tg}, 'Куратор Тестовый', 'roster', 1985, ${role}) returning id`;
-    if (group) await sql`insert into group_members (group_id, user_id, role) values (${group}, ${id}, 'teacher')`;
+    // Права — из ролей 007 (#63): куратор группы / администратор колледжа
+    if (group) await sql`insert into staff_assignments (user_id, group_id, role) values (${id}, ${group}, 'curator')`;
+    if (role === 'admin') await sql`insert into staff_roles (user_id, role) values (${id}, 'admin')`;
     return tg;
   };
   curatorTg = await staff('teacher', groupId);
