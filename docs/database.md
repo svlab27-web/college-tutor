@@ -153,7 +153,7 @@ Telegram без личной ссылки → демо, в базу ничего
 
 ## 6. Миграции
 
-- Имя: `NNN_кратко.sql` — следующая свободная: `007_…sql`.
+- Имя: `NNN_кратко.sql` — следующая свободная: `008_…sql`.
 - **Применённую миграцию не меняем** — только новая сверху.
 - Применяем: SQL Editor в Supabase → затем `NOTIFY pgrst, 'reload schema';`.
   Позже можно перейти на Supabase CLI (`supabase db push`).
@@ -172,7 +172,7 @@ Telegram без личной ссылки → демо, в базу ничего
 | `004_personal_invites.sql` | Личная одноразовая ссылка: `invites.user_id` / `revoked_at` / `created_by`, формат токена, одна действующая ссылка на студента, `group_members.invite_token`, `users.birth_date`; ссылка преподавателя — только со сроком; `invites.full_name` удалён | #35 | 14.10.2026 · `college-tutor` |
 | `005_parental_consent.sql` | Согласие родителя отмечает куратор: `consents.document_ref`, `recorded_by` обязателен (куратора не удалить), способ `college_list`, без Telegram студента; при удалении студента отметки о согласии родителя удаляются; одно действующее согласие студента на версию текста | #36 | 14.10.2026 · `college-tutor` |
 | `006_curator.sql` | Под кабинет куратора (#9): одно действующее согласие родителя на студента (`consents_one_parental`), индексы `group_members (user_id)`, `help_requests` (открытые студента; группы по статусу и дате), `attempts (lesson_id, created_at)` | #44 | 15.10.2026 · `college-tutor` |
-| `007_staff.sql` | Вход сотрудников по личной ссылке и роли (#63): `invites.role = 'staff'` (без группы, ≤ 48 ч), `users.disabled_at`, `staff_roles` (методист, администратор колледжа; последнего администратора не убрать — `staff_keep_admin`), `staff_assignments` (педагог с предметом / куратор), перенос `group_members.role = 'teacher'` в кураторы и `users.role = 'admin'` в `staff_roles`; основа этапа А: `topics`, `topic_terms`, `learning_events`, `group_tasks`, `ai_messages.topic_id`. Только добавляет — прежний `api/` с ней работает как раньше; применять до выкладки `api/` из того же PR | — | не применена |
+| `007_staff.sql` | Вход сотрудников по личной ссылке и роли (#63): `invites.role = 'staff'` (без группы, ≤ 48 ч), `users.disabled_at`, `staff_roles` (методист, администратор колледжа; последнего администратора не убрать — `staff_keep_admin`), `staff_assignments` (педагог с предметом / куратор), перенос `group_members.role = 'teacher'` в кураторы и `users.role = 'admin'` в `staff_roles`; основа этапа А: `topics`, `topic_terms`, `learning_events`, `group_tasks`, `ai_messages.topic_id`. Только добавляет — прежний `api/` с ней работает как раньше; применять до выкладки `api/` из того же PR | #66 | 20.10.2026 · `college-tutor` (перенесён 1 куратор, администраторов 0) |
 
 `seed.sql` в `college-tutor` не применялся.
 
